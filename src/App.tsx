@@ -1,35 +1,40 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import Header from './components/Header';
+import Sidebar from './components/Sidebar';
+import ContentArea from './components/ContentArea';
+import './App.css';
+
+import { useState, useCallback } from 'react';
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [selectedMenu, setSelectedMenu] = useState('home');
+  const [searchValue, setSearchValue] = useState('');
+  const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
+
+  const handleMenuSelect = useCallback((key: string) => {
+    setSelectedMenu(key);
+    setSearchValue(''); // 메뉴 변경 시 검색 값 초기화
+  }, []); // setSelectedMenu와 setSearchValue는 안정적이므로 의존성 배열이 비어있어도 됩니다.
 
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
+    <div className="app-container" >
+      <Header />
+      <div className="main-content-wrapper" >
+        <Sidebar
+          selectedMenu={selectedMenu}
+          onMenuSelect={handleMenuSelect}
+          searchValue={searchValue}
+          onSearchChange={setSearchValue}
+          isExpanded={isSidebarExpanded}
+          onMouseEnter={() => setIsSidebarExpanded(true)}
+          onMouseLeave={() => setIsSidebarExpanded(false)}
+        />
+        <ContentArea
+          selectedMenu={selectedMenu}
+          searchValue={searchValue}
+        />
       </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+    </div>
+  );
 }
 
-export default App
+export default App;

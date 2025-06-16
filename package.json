@@ -10,6 +10,9 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@handsontable/react": "^15.3.0",
+    "axios": "^1.10.0",
+    "handsontable": "^15.3.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },

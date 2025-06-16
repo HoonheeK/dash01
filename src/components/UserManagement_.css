@@ -1,0 +1,54 @@
+.cell-edited {
+  background-color: yellow !important;
+}
+
+.handsontable {
+  font-size: 80% !important;
+}
+
+.ht_clone_top .handsontable th, .handsontable th {
+  white-space: pre-line !important;
+  word-break: break-all;
+  text-align: center;
+}
+
+/* 個別カラムの幅指定（必要に応じて調整） */
+.ht_master .handsontable th, .ht_master .handsontable td {
+  max-width: 120px;
+  min-width: 60px;
+  overflow: hidden;
+}
+
+/* 折りたたみボタン（＋ーのみ、編集開始と同じ色） */
+.toggle-btn {
+  font-size: 1.2em;
+  background-color: #1976d2;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  outline: none;
+  padding: 0 10px;
+  user-select: none;
+  margin-right: 8px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.toggle-btn:focus {
+  outline: 2px solid #1976d2;
+}
+
+.toggle-btn:hover {
+  background-color: #1565c0;
+}
+
+.row-deleted td, .row-deleted .htCheckboxRendererInput {
+  background: #ffd6d6 !important;
+}
+
+.row-deleted {
+  background: #ffd6d6 !important;
+}
