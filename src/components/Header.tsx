@@ -1,5 +1,7 @@
 import logo from '../assets/iQUAVIS_logo.png';
 
+export const HEADER_WIDTH_PX = 1200;
+
 const Header = () => {
   return (
     <header style={{
@@ -10,7 +12,8 @@ const Header = () => {
       background: '#000000',
       color: '#fff',
       height: '40px',
-      width: '600px', // 너비 설정
+      // width: `${HEADER_WIDTH_PX}px`, // 너비 설정
+      width: '100dvw', // 너비 설정
       minWidth: '400px' // 최소 너비 설정
     }}>
       <img src={logo} alt="Logo" style={{ height: '28px', marginRight: 16 }} />

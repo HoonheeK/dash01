@@ -32,13 +32,14 @@ const Sidebar = ({
     overflow: 'hidden', // 중요: 내용이 넘치는 것을 방지하고 부드러운 너비 전환을 위함
     transition: 'width 0.3s ease-in-out, padding 0.3s ease-in-out',
     width: isExpanded ? 150 : 20, // 확장 시 너비 132px, 축소 시 30px
-    minWidth: isExpanded ? 150 : 20, // minWidth도 동적으로 변경
+    minWidth: isExpanded ? 20 : 20, // minWidth도 동적으로 변경
     padding: isExpanded ? '2px' : '0px', // 확장 시 패딩, 축소 시 패딩 없음
     display: 'flex',
     flexDirection: 'row',
     alignItems: isExpanded ? 'stretch' : 'center', // 축소 시 내부 텍스트 중앙 정렬
     justifyContent: isExpanded ? 'flex-start' : 'center', // 축소 시 내부 텍스트 중앙 정렬
     fontSize: '0.8rem', // 기본 폰트 크기
+    alignSelf:"stretch", // 부모 flex 컨테이너의 align-items (기본값 stretch)에 따르도록 설정
   };
 
   const collapsedLabelStyle: React.CSSProperties = {

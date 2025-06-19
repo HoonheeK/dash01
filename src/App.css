@@ -7,8 +7,9 @@
 }
 
 .main-content-wrapper {
-  display: flex;
-  width: 600px; /* Header 너비와 일치시키거나, 필요에 따라 조정 */
+  display:flex;
+  justify-content: flex-start; /* 자식 요소들을 왼쪽부터 정렬 */
+  width: 100%; /* Header 너비와 일치시키거나, 필요에 따라 조정 */
   flex-grow: 1; /* Header를 제외한 나머지 세로 공간을 채움 */
-  overflow: hidden; /* Sidebar 전환 시 내용이 넘치는 것을 방지 */
+  overflow: hidden; /* Sidebar 전환 시 내용이 넘치는 것을 방지 */;
 }

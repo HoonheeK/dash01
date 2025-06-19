@@ -339,8 +339,16 @@ export async function postClass(data: Omit<ClassData, 'Id'>): Promise<ClassData>
   }
 }
 
+// --- Project 타입 정의 ---
+export interface Project {
+  Id: string;
+  Name: string;
+  ProductAxisGroupAttribute: string;
+  // API 응답에 따라 다른 필드가 있을 수 있습니다.
+}
+
 // --- プロジェクト取得API ---
-export async function getProjects(): Promise<any[]> {
+export async function getProjects(): Promise<Project[]> {
   if (!ApiService.authToken) {
     const authenticated = await ApiService.authenticate();
     if (!authenticated) {
@@ -360,12 +368,126 @@ export async function getProjects(): Promise<any[]> {
       },
     });
     console.log('getProjects RESPONSE:', response.data);
-    return response.data;
+    return response.data as Project[]; // API 응답이 Project 배열임을 명시
   } catch (error) {
     console.error('Error fetching projects:', error);
     if (axios.isAxiosError(error) && error.response?.status === 401) {
       ApiService.authToken = '';
       return getProjects();
+    }
+    throw error;
+  }
+}
+
+// --- 중첩된 타입 정의 ---
+interface CalendarDay {
+  Day: string;
+  OperatingDay: boolean;
+}
+
+interface CalendarData {
+  Sunday: boolean;
+  Monday: boolean;
+  Tuesday: boolean;
+  Wednesday: boolean;
+  Thursday: boolean;
+  Friday: boolean;
+  Saturday: boolean;
+  Days: CalendarDay[];
+}
+
+interface CustomAttributeEntry {
+  Id: string;
+  Key: string;
+  Value: string;
+}
+
+interface AssignEntry {
+  Id: string;
+  LoginId: string;
+  Name: string;
+  AssignedManHour: number;
+  AssignedRate: number;
+  ReferenceCode?: string; // Optional based on JSON
+  Order?: number;         // Optional based on JSON
+}
+
+interface ProgressData {
+  Status: string; // "NotStart", "OnGoing", "Complete", etc.
+  ProgressRate: number;
+  ActualManHour: number;
+  Note?: string;
+  Memo?: string;
+  StartDate?: string;
+  EndDate?: string;
+  CustomAttributes?: CustomAttributeEntry[];
+  Assigns?: { // Progress.Assigns might have a different structure
+    Id: string;
+    LoginId: string;
+    Name: string;
+    ActualManHour: number;
+    ReferenceCode?: string;
+  }[];
+}
+
+interface ClassInfo {
+  Id: string;
+  Name: string;
+}
+
+interface TagInfo {
+  Id: string;
+  Name: string;
+}
+
+// --- Task 타입 정의 ---
+// 실제 API 응답에 맞게 필드를 조정해야 합니다.
+export interface Task {
+  Id: string;
+  Name: string;
+  Type: string;
+  StartDate?: string;
+  EndDate?: string;
+  PlannedDuration?: number;
+  ParentTaskId?: string;
+  PhaseId?: string;
+  Priority?: string;
+  CustomAttributes?: CustomAttributeEntry[]; // 중첩 배열
+  Progress?: ProgressData; // 중첩 객체
+  Class?: ClassInfo; // 중첩 객체
+  Assigns?: AssignEntry[]; // 담당자 정보
+  Tags?: TagInfo[]; // 태그 정보
+  ProjectId: string;
+  // 필요에 따라 더 많은 최상위 또는 평탄화된 필드를 추가
+  // 예: taskStatus: string (Progress.Status에서 가져옴)
+  // 예: primaryAssigneeName?: string (Assigns[0].Name 에서 가져옴)
+}
+
+// --- 프로젝트별 Task 목록 조회 API ---
+export async function getTasksForProject(projectId: string): Promise<Task[]> {
+  if (!ApiService.authToken) {
+    const authenticated = await ApiService.authenticate();
+    if (!authenticated) {
+      throw new Error('Authentication failed');
+    }
+  }
+  try {
+    // 'Assigns'와 'Progress' 정보를 포함하도록 params 추가
+    const response = await ApiService.axiosInstance.get<Task[]>(`${BASE_URL}/v1/projects/${projectId}/tasks`, {
+      headers: {
+        Authorization: ApiService.authToken,
+      },
+      params: {
+        include: 'Assigns,Progress', // API가 이 파라미터를 지원한다고 가정합니다.
+      },
+    });
+    console.log(`getTasksForProject (projectId: ${projectId}) RESPONSE:`, response.data);
+    return response.data;
+  } catch (error) {
+    console.error(`Error fetching tasks for project ${projectId}:`, error);
+    if (axios.isAxiosError(error) && error.response?.status === 401) {
+      ApiService.authToken = ''; // 토큰을 클리어
+      return getTasksForProject(projectId); // 재귀 호출로 재시도
     }
     throw error;
   }
