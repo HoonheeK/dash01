@@ -3,7 +3,7 @@
   display: flex;
   flex-direction: column;
   align-items: center; /* Header와 main-content-wrapper를 가로 중앙 정렬 */
-  min-height: 100vh;
+  height: 100vh;
 }
 
 .main-content-wrapper {

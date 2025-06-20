@@ -8,12 +8,12 @@ const Header = () => {
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'space-between',
-      padding: '6px 16px',
+      padding: '6px 20px',
       background: '#000000',
       color: '#fff',
       height: '40px',
       // width: `${HEADER_WIDTH_PX}px`, // 너비 설정
-      width: '100dvw', // 너비 설정
+      width: '94vw', // 너비 설정
       minWidth: '400px' // 최소 너비 설정
     }}>
       <img src={logo} alt="Logo" style={{ height: '28px', marginRight: 16 }} />

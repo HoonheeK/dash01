@@ -2,7 +2,7 @@ import MakeWidget01 from './01_makeWidget';
 import TEST2 from './TEST2';
 import TEST3 from './TEST3';
 import HOME from './HOME';
-import { HEADER_WIDTH_PX } from './Header'; // Header에서 너비 상수 import
+// import { HEADER_WIDTH_PX } from './Header'; // Header에서 너비 상수 import
 
 type ContentAreaProps = {
   selectedMenu: string;

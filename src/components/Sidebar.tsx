@@ -30,9 +30,9 @@ const Sidebar = ({
     // alignSelf: 'flex-start', // 부모 flex 컨테이너의 align-items (기본값 stretch)에 따르도록 제거
     cursor: 'pointer',
     overflow: 'hidden', // 중요: 내용이 넘치는 것을 방지하고 부드러운 너비 전환을 위함
-    transition: 'width 0.3s ease-in-out, padding 0.3s ease-in-out',
-    width: isExpanded ? 150 : 20, // 확장 시 너비 132px, 축소 시 30px
-    minWidth: isExpanded ? 20 : 20, // minWidth도 동적으로 변경
+    transition: 'width 0.15s ease-in-out, padding 0.15s ease-in-out',
+    width: isExpanded ? 120 : 20, // 확장 시 너비 132px, 축소 시 30px
+    minWidth: isExpanded ? 60 : 20, // minWidth도 동적으로 변경
     padding: isExpanded ? '2px' : '0px', // 확장 시 패딩, 축소 시 패딩 없음
     display: 'flex',
     flexDirection: 'row',

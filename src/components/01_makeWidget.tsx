@@ -4,9 +4,8 @@ import { getProjects, Project, getTasksForProject, Task } from '../services/api'
 import Handsontable from 'handsontable'; // Handsontable 코어 임포트
 import { DateCellType } from 'handsontable/cellTypes';
 import { HotTable, HotTableClass } from '@handsontable/react'; // HotTableClass 추가
-import { ResponsiveBar } from '@nivo/bar';
-import { ResponsiveLine } from '@nivo/line';
-import { HEADER_WIDTH_PX } from './Header'; // Header에서 너비 상수 import
+import { ResponsiveBar } from '@nivo/bar'; // Nivo Bar Chart
+import { ResponsiveLine } from '@nivo/line'; // Nivo Line Chart
 import 'handsontable/dist/handsontable.full.css';
 
 // DateCellType 등록
@@ -34,8 +33,6 @@ const taskColumnsConfig: { data: string; title: string; width?: string, type?: s
   { data: 'Progress.Status', title: 'Status', width: '100%', className: 'htCenter' }, // 60px / 460px ≈ 13.04% -> 13%
   { data: 'Progress.ProgressRate', title: 'Progr.', width: '100%', type: 'numeric', className: 'htCenter' }, // 60px / 460px ≈ 13.04% -> 13%
 ];
-
-const WIDGET_AREA_WIDTH_PX = HEADER_WIDTH_PX - 50;
 
 const MakeWidget01: React.FC = () => {
   const [pageTitle, setPageTitle] = useState('01_makeWidget Page');
@@ -79,11 +76,14 @@ const MakeWidget01: React.FC = () => {
   const [selectedProjectName, setSelectedProjectName] = useState<string>(''); // 선택된 프로젝트 이름을 저장할 상태
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null); // 선택된 프로젝트 ID를 저장할 상태
   const [isProjectConfirmed, setIsProjectConfirmed] = useState<boolean>(false); // "Select" 버튼 클릭 상태
-  const [tasks, setTasks] = useState<Task[]>([]); // 가져온 Task 데이터를 저장할 상태
-  const [selectedTaskColumnKeys, setSelectedTaskColumnKeys] = useState(new Set<string>()); // Task 테이블에서 선택된 컬럼 키
+  const [tasks, setTasks] = useState<Task[]>([]); // 가져온 Task 데이터를 저장할 상태 
+  const [taskHeaderSelection, setTaskHeaderSelection] = useState(new Set<string>()); // New state for checkbox table
   const [confirmedTaskColumnKeys, setConfirmedTaskColumnKeys] = useState(new Set<string>()); // "Select" 버튼으로 확정된 Task 테이블 컬럼 키
   const [lastFetchedProjectIdForTasks, setLastFetchedProjectIdForTasks] = useState<string | null>(null); // 마지막으로 Task를 가져온 프로젝트 ID
 
+  // Chart size states - barChartWidth is now string to support "94%" or "500px"
+  const [barChartWidth, setBarChartWidth] = useState<string>("94%"); 
+  const [barChartHeight, setBarChartHeight] = useState<number>(400);
   // Chart configuration states
   const [barChartIndexBy, setBarChartIndexBy] = useState<string>('');
   const [barChartKeys, setBarChartKeys] = useState<string[]>([]);
@@ -103,8 +103,6 @@ const MakeWidget01: React.FC = () => {
   const [barChartLabelSkipWidth, setBarChartLabelSkipWidth] = useState<number>(12);
   const [barChartLabelSkipHeight, setBarChartLabelSkipHeight] = useState<number>(12);
 
-
-
   const [lineChartXKey, setLineChartXKey] = useState<string>('');
   const [lineChartYKeys, setLineChartYKeys] = useState<string[]>([]);
 
@@ -122,8 +120,9 @@ const MakeWidget01: React.FC = () => {
             if (selectedProjectId === lastFetchedProjectIdForTasks && tasks.length > 0) {
               setSubTitle(`Displaying existing tasks for project ${selectedProjectName}. Column selections preserved.`);
               console.log('Using existing tasks for project ID:', selectedProjectId, 'Column selections preserved.');
+              // taskHeaderSelection is intentionally not reset here to preserve previous selections for this project
             } else {
-              setSelectedTaskColumnKeys(new Set());
+              setTaskHeaderSelection(new Set()); // Reset checkbox selections for new project tasks
               setConfirmedTaskColumnKeys(new Set());
               setSubTitle(`Fetching tasks for project ID: ${selectedProjectId}...`);
               // At this point, selectedProjectId is guaranteed to be a string.
@@ -140,8 +139,7 @@ const MakeWidget01: React.FC = () => {
                   if (selectedProjectId === lastFetchedProjectIdForTasks) {
                     setLastFetchedProjectIdForTasks(null);
                   }
-                  setTasks([]);
-                  setSelectedTaskColumnKeys(new Set());
+                  setTasks([]);                  
                   setConfirmedTaskColumnKeys(new Set());
                 });
             }
@@ -166,8 +164,8 @@ const MakeWidget01: React.FC = () => {
       case 'Set Project':
           setPageTitle('Select Project');
           setCurrentStep('project');
-          setConfirmedTaskColumnKeys(new Set()); // 프로젝트 변경 시 확정된 컬럼도 초기화
-          setSelectedTaskColumnKeys(new Set()); // 프로젝트 변경 시 컬럼 선택 초기화
+          setTaskHeaderSelection(new Set()); // Reset checkbox selections when project changes
+          setConfirmedTaskColumnKeys(new Set()); // Reset confirmed columns when project changes
           setLastFetchedProjectIdForTasks(null); 
           setTasks([]); // Task 데이터 초기화하여 Task 테이블 숨기기
           setSubTitle('Loading projects...');
@@ -249,23 +247,56 @@ const MakeWidget01: React.FC = () => {
     }
   };
 
-  const toggleTaskColumnSelection = (columnKey: string) => {
-    setSelectedTaskColumnKeys(prevKeys => {
-      const newKeys = new Set(prevKeys);
-      if (newKeys.has(columnKey)) {
-        newKeys.delete(columnKey);
+  // Task Header Selection Table Data Preparation
+  const taskHeaderTableData = taskColumnsConfig.map(col => ({
+    select: taskHeaderSelection.has(col.data),
+    headerName: col.title,
+    key: col.data, // Store the key for identification
+  }));
+
+  const taskHeaderTableColumns: Handsontable.ColumnSettings[] = [
+    { data: 'select', type: 'checkbox', title: 'Select', width: 60, className: 'htCenter' },
+    { data: 'headerName', title: 'Header Name', readOnly: true, width: 220 },
+    // 'key' column is not displayed but used internally
+  ];
+
+
+  const handleTaskHeaderCheckboxChange = (key: string, checked: boolean) => {
+    setTaskHeaderSelection(prev => {
+      const newSelection = new Set(prev);
+      if (checked) {
+        newSelection.add(key);
       } else {
-        newKeys.add(columnKey);
+        newSelection.delete(key);
       }
-      return newKeys;
+      return newSelection;
+    });
+  };
+
+  // afterChange handler for the task header selection table
+  const handleTaskHeaderTableAfterChange = (changes: Handsontable.CellChange[] | null, source: Handsontable.ChangeSource) => {
+    if (source === 'loadData' || !changes) {
+      return;
+    }
+    changes.forEach(change => {
+      const [row, prop, , newValue] = change;
+      // Ensure 'prop' is the 'select' column and 'row' is a valid index
+      if (prop === 'select' && typeof row === 'number' && row < taskHeaderTableData.length) {
+        const changedItemKey = taskHeaderTableData[row].key;
+        if (changedItemKey) {
+          handleTaskHeaderCheckboxChange(changedItemKey, newValue as boolean);
+        }
+      }
     });
   };
 
   const handleConfirmTaskColumnSelection = () => {
-    if (selectedTaskColumnKeys.size > 0) {
-      setConfirmedTaskColumnKeys(new Set(selectedTaskColumnKeys));
-      setSubTitle(`Columns [${Array.from(selectedTaskColumnKeys).join(', ')}] confirmed for chart. You can now proceed to "Set Chart".`);
+    if (taskHeaderSelection.size > 0) {
+      setConfirmedTaskColumnKeys(new Set(taskHeaderSelection));
+      setSubTitle(`Columns [${Array.from(taskHeaderSelection).join(', ')}] confirmed for chart. You can now proceed to "Set Chart".`);
+      console.log('Confirmed task columns for chart:', Array.from(taskHeaderSelection));
     } else {
+      setConfirmedTaskColumnKeys(new Set()); // Ensure it's reset if nothing is selected
       setSubTitle('No columns selected to confirm.');
     }
   };
@@ -288,7 +319,7 @@ const MakeWidget01: React.FC = () => {
     return (task as any)[key];
   };
   return (
-    <div style={{ padding: '5px', width:'100vw'}}>
+    <div style={{ padding: '0px'}}>
       <h2>{pageTitle}</h2>
       <p>{subTitle}</p>
       <div style={buttonContainerStyle}>
@@ -298,17 +329,17 @@ const MakeWidget01: React.FC = () => {
             onClick={() => handleButtonClick(item.label)}
             style={{
               ...buttonStyle,
-              cursor: item.label === 'Set Project' && selectedTaskColumnKeys.size > 0 ? 'not-allowed' : 'pointer',
-              opacity: item.label === 'Set Project' && selectedTaskColumnKeys.size > 0 ? 0.5 : 1,
+              cursor: item.label === 'Set Project' && taskHeaderSelection.size > 0 ? 'not-allowed' : 'pointer',
+              opacity: item.label === 'Set Project' && taskHeaderSelection.size > 0 ? 0.5 : 1,
             }}
-            disabled={item.label === 'Set Project' && selectedTaskColumnKeys.size > 0}
+            disabled={item.label === 'Set Project' && taskHeaderSelection.size > 0}
             onMouseEnter={(e) => {
-              if (!(item.label === 'Set Project' && selectedTaskColumnKeys.size > 0)) {
+              if (!(item.label === 'Set Project' && taskHeaderSelection.size > 0)) {
                 (e.target as HTMLElement).style.backgroundColor = '#e0e0e0';
               }
             }}
             onMouseLeave={(e) => {
-              if (!(item.label === 'Set Project' && selectedTaskColumnKeys.size > 0)) {
+              if (!(item.label === 'Set Project' && taskHeaderSelection.size > 0)) {
                 (e.target as HTMLElement).style.backgroundColor = '#f0f0f0';
               }
             }}
@@ -320,7 +351,7 @@ const MakeWidget01: React.FC = () => {
       </div>
       {currentStep === 'project' && (
         <>
-          <div style={{ width: '100%', marginTop: '20px' }}>
+          <div style={{ marginTop: '20px' }}>
             <HotTable
               ref={projectHotTableRef} // Assign the ref here
               data={projects}
@@ -328,7 +359,7 @@ const MakeWidget01: React.FC = () => {
               colHeaders={true} // columnsConfig의 title을 헤더로 사용
               afterSelectionEnd={handleAfterSelectionEnd} // 선택 이벤트 핸들러 추가
               licenseKey="non-commercial-and-evaluation"
-              width="100%" // 부모 컨테이너에 맞춰 100% 너비 사용
+              width="94%" // 부모 컨테이너에 맞춰 100% 너비 사용
               height="400px"
               manualColumnResize={true}
               readOnly={true}
@@ -358,70 +389,53 @@ const MakeWidget01: React.FC = () => {
         </>
       )}
 
-      {/* Task 테이블 및 컬럼 선택 UI: currentStep이 'data'이고 tasks 데이터가 있을 때만 표시 */}
-      {currentStep === 'data' && tasks.length > 0 && (
+      {/* Task Header Selection Table and Task Table */}
+      {currentStep === 'data' && isProjectConfirmed && tasks.length > 0 && (
         <div style={{ marginTop: '30px' }}>
           <h3>Tasks for: {selectedProjectName}</h3>
-          <div style={{ marginBottom: '5px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            {/* Task 테이블 컬럼 선택 체크박스 행 */}
-            {/* <div style={{ display: 'flex', border: '1px solid #ccc', backgroundColor: '#f0f0f0', boxSizing: 'border-box' }}> */}
-              {/* <div style={{
-                width: 50, // Handsontable 기본 rowHeader 너비 근사치
-                minWidth: 50, // 최소 너비 고정
-                height: '26px', // 헤더 높이와 유사하게
-                borderRight: '1px solid #ccc',
-                boxSizing: 'border-box'
-              }}>
-                &nbsp; 
-              </div>
-              {taskColumnsConfig.map((col) => (
-                <div
-                  key={col.data}
-                  style={{
-                    width: col.width || 100, // config에 width가 없다면 기본값
-                    minWidth: col.width || 100,
-                    height: '26px', // 헤더 높이와 유사하게
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    borderRight: '1px solid #ccc',
-                    boxSizing: 'border-box',
-                    padding: '0 5px',
-                  }}
-                >
-                  <input
-                    type="checkbox"
-                    checked={selectedTaskColumnKeys.has(col.data)}
-                    onChange={() => toggleTaskColumnSelection(col.data)}
-                    style={{ margin: 0 }}
-                    title={`Select column: ${col.title}`}
-                  />
-                </div>
-              ))}
-            </div> */}
+          <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'flex-start', marginBottom: '20px' }}>
+            <div style={{ marginRight: '20px', border: '1px solid #ccc', padding: '10px', borderRadius: '4px' }}>
+              <h4 style={{ marginTop: 0 }}>Select Task Columns for Chart</h4>
+              <HotTable
+                data={taskHeaderTableData}
+                columns={taskHeaderTableColumns}
+                rowHeaders={false}
+                colHeaders={true} // Show headers for the selection table itself
+                licenseKey="non-commercial-and-evaluation"
+                width="300px" // Fixed width for this table
+                height="auto" // Adjust height based on content, or set a fixed one
+                stretchH="none" // Do not stretch columns for this small table
+                afterChange={handleTaskHeaderTableAfterChange}
+                className="task-header-selection-table" // Optional: for specific styling
+              />
+            </div>
+
             <button
               onClick={handleConfirmTaskColumnSelection}
-              disabled={selectedTaskColumnKeys.size === 0}
+              disabled={taskHeaderSelection.size === 0}
               style={{
                 ...buttonStyle, // 기존 버튼 스타일 재활용
-                padding: '3px 8px', // 패딩 약간 조정
-                marginLeft: '10px',
-                backgroundColor: selectedTaskColumnKeys.size > 0 ? '#4CAF50' : '#f0f0f0', // 활성/비활성 색상
-                color: selectedTaskColumnKeys.size > 0 ? 'white' : '#aaa',
-                cursor: selectedTaskColumnKeys.size > 0 ? 'pointer' : 'not-allowed',
+                padding: '8px 15px',
+                alignSelf: 'flex-start', // Align button to the top of the flex container
+                marginTop: '30px', // Add some top margin to align with the table title
+                backgroundColor: taskHeaderSelection.size > 0 ? '#4CAF50' : '#f0f0f0',
+                color: taskHeaderSelection.size > 0 ? 'white' : '#aaa',
+                cursor: taskHeaderSelection.size > 0 ? 'pointer' : 'not-allowed',
               }}
             >
               Select Columns
             </button>
           </div>
+
           <HotTable
             data={tasks}
             columns={taskColumnsConfig}
             colHeaders={true}
             rowHeaders={true}
             licenseKey="non-commercial-and-evaluation"
-            width="100%" // 부모 컨테이너에 맞춰 100% 너비 사용
+            width="94%" // 부모 컨테이너에 맞춰 100% 너비 사용
             height="400px" // 필요에 따라 조절
+            manualColumnResize={true}
             readOnly={true}
             filters={true} // Task 테이블에는 필터 활성화
             dropdownMenu={true}
@@ -432,7 +446,7 @@ const MakeWidget01: React.FC = () => {
 
       {/* Nivo Chart 선택 및 표시 영역 */}
       {currentStep === 'chart' && (
-        <div style={{ marginTop: '30px', padding: '20px', border: '1px solid #eee', width: `${WIDGET_AREA_WIDTH_PX}px` }}>
+        <div style={{ marginTop: '30px'}}>
           <h3>Chart Configuration</h3>
           <p>Select a Nivo chart type and configure its settings using the confirmed columns: <strong>{Array.from(confirmedTaskColumnKeys).join(', ') || 'None'}</strong></p>
           <p>Task data row count: {tasks.length}</p>
@@ -455,6 +469,13 @@ const MakeWidget01: React.FC = () => {
                     <option value="">-- Select Y-axis --</option>
                     {Array.from(confirmedTaskColumnKeys).map(key => <option key={key} value={key}>{key}</option>)}
                   </select>
+                </div>
+                <div style={{ marginTop: '10px' }}>
+                  <label htmlFor="barChartWidth">Width (e.g., 94%, 500px): </label>
+                  <input type="text" id="barChartWidth" value={barChartWidth} onChange={(e) => setBarChartWidth(e.target.value)} style={{width: '100px'}}/>
+
+                  <label htmlFor="barChartHeight" style={{ marginLeft: '15px' }}>Height (px): </label>
+                  <input type="number" id="barChartHeight" value={barChartHeight} onChange={(e) => setBarChartHeight(parseInt(e.target.value, 10))} min="100" style={{width: '80px'}}/>
                 </div>
                 <div style={{ marginTop: '10px' }}>
                   <label htmlFor="barLayout">Layout: </label>
@@ -527,7 +548,7 @@ const MakeWidget01: React.FC = () => {
                   <input type="number" id="barLabelSkipHeight" value={barChartLabelSkipHeight} onChange={(e) => setBarChartLabelSkipHeight(parseInt(e.target.value, 10))} style={{width: '50px'}}/>
                 </div>
                 {barChartIndexBy && barChartKeys.length > 0 && (
-                  <div style={{ height: '400px', marginTop: '10px' }}> {/* 차트 높이 및 너비는 부모 div에 의해 제어됨 */}
+                  <div style={{ height: barChartHeight, width: barChartWidth, marginTop: '10px' }}> {/* 차트 높이 및 너비는 부모 div에 의해 제어됨 */}
                     <ResponsiveBar
                       data={tasks.map(task => {
                         const item: { [key: string]: any } = {
