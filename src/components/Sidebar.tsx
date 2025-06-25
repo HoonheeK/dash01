@@ -1,7 +1,7 @@
 const menuItems = [
   { key: 'home', labelKey: 'Home' },
   { key: 'makeWidget', labelKey: 'Widget 作成' },
-  { key: 'showDashboard', labelKey: 'ダッシュボード表示' },
+  { key: 'makeDashboard', labelKey: 'Dashboard 作成' },
   { key: 'configDashboard', labelKey: '各種設定' },
 ];
 

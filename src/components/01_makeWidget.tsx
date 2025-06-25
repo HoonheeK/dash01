@@ -17,6 +17,90 @@ interface DisplayProject {
   ID: string; // Project의 ID를 표시하기 위해 추가
 }
 
+// LocalStorage에 저장될 위젯 설정 타입 (02_makeDashboard.tsx와 동기화)
+interface SavedWidgetConfig {
+  widgetName: string;
+  chartType: 'bar' | 'line' | 'pie';
+  projectId: string;
+  projectName: string;
+  confirmedTaskColumnKeys: string[];
+
+  // Bar Chart Configs
+  barChartIndexBy: string;
+  barChartKeys: string[];
+  barChartLayout: 'vertical' | 'horizontal';
+  barChartGroupMode: 'stacked' | 'grouped';
+  barChartReverse: boolean;
+  barChartPadding: number;
+  barChartShowAxisTop: boolean;
+  barChartShowAxisRight: boolean;
+  barChartShowAxisBottom: boolean;
+  barChartShowAxisLeft: boolean;
+  barChartEnableGridX: boolean;
+  barChartEnableGridY: boolean;
+  barChartEnableLabel: boolean;
+  barChartLabelSkipWidth: number;
+  barChartLabelSkipHeight: number;
+  barChartWidth: string;
+  barChartHeight: number;
+
+  // Line Chart Configs
+  lineChartEnableGridX: boolean;
+  lineChartEnableGridY: boolean;
+  lineChartXKey: string;
+  lineChartYKeys: string[];
+  lineChartCurve: 'linear' | 'cardinal' | 'step' | 'monotoneX';
+  lineChartEnablePoints: boolean;
+  lineChartPointSize: number;
+  lineChartEnableArea: boolean;
+  lineChartLineWidth: number;
+  lineChartPointBorderWidth: number;
+  lineChartPointLabel: string;
+  lineChartPointLabelYOffset: number;
+  lineChartUseThemeBackgroundForPointColor: boolean;
+  lineChartCustomPointColor: string;
+  lineChartAreaOpacity: number;
+  lineChartUseMesh: boolean;
+  lineChartXScaleType: 'point' | 'linear';
+  lineChartMarginTop: number;
+  lineChartMarginRight: number;
+  lineChartMarginBottom: number;
+  lineChartMarginLeft: number;
+  lineChartColorsScheme: ColorSchemeId;
+  lineChartWidth: string;
+  lineChartHeight: number;
+
+  // Pie Chart Configs
+  pieChartStartAngle: number;
+  pieChartEndAngle: number;
+  pieChartSortByValue: boolean;
+  pieChartIsInteractive: boolean;
+  pieChartRole: string;
+  pieChartMarginTop: number;
+  pieChartMarginRight: number;
+  pieChartMarginBottom: number;
+  pieChartMarginLeft: number;
+  pieChartEnableArcLinkLabels: boolean;
+  pieChartArcLinkLabel: string;
+  pieChartArcLinkLabelsSkipAngle: number;
+  pieChartArcLinkLabelsTextColor: string;
+  pieChartIdKey: string;
+  pieChartValueKey: string;
+  pieChartInnerRadius: number;
+  pieChartOuterRadius: number;
+  pieChartPadAngle: number;
+  pieChartCornerRadius: number;
+  pieChartColorsScheme: ColorSchemeId;
+  pieChartBorderWidth: number;
+  pieChartBorderColor: string;
+  pieChartEnableArcLabels: boolean;
+  pieChartArcLabel: string;
+  pieChartArcLabelSkipAngle: number;
+  pieChartArcLabelTextColor: string;
+  pieChartWidth: string;
+  pieChartHeight: number;
+}
+
 // Handsontable 컬럼 설정 (너비 포함)
 const columnsConfig: { data: keyof DisplayProject; title: string; width: string }[] = [ // width 타입을 string으로 변경
   { data: 'ProductAxisGroupAttribute', title: 'Product Axis Group', width: '100%' }, // 150px / 500px = 30%
@@ -137,6 +221,8 @@ const MakeWidget01: React.FC = () => {
   const [currentStep, setCurrentStep] = useState<WizardStep>('project');
   const [chartType, setChartType] = useState<'bar' | 'line' | 'pie'>('bar');
 
+  const [widgetName, setWidgetName] = useState<string>('');
+  const [previewConfig, setPreviewConfig] = useState<SavedWidgetConfig | null>(null); // State to hold the config for preview
   const handleButtonClick = (action: string) => {
 
     switch (action) {
@@ -185,10 +271,11 @@ const MakeWidget01: React.FC = () => {
         console.log('Using confirmed task table columns for chart:', Array.from(confirmedTaskColumnKeys));
         break;
       case 'Save Widget': // "Set Widget" 대신 "Save Widget"으로 가정합니다 (menuItems 기준).
-        setPageTitle('Write widget name and save');
+        setPageTitle('Save Widget Configuration');
         setCurrentStep('save');
-        setSubTitle('Enter a name for your widget and click save.');
+        setSubTitle('Enter a name for your widget and review the live configuration preview below.');
         break;
+
       case 'Set Project':
         setPageTitle('Select Project');
         setCurrentStep('project');
@@ -374,6 +461,140 @@ const MakeWidget01: React.FC = () => {
       return value;
     }
     return (task as any)[key];
+  };
+
+  const getChartConfigJson = () => {
+    const baseConfig = {
+      chartType: chartType,
+      confirmedTaskColumnKeys: Array.from(confirmedTaskColumnKeys),
+    };
+
+    let chartSpecificConfig: any = {};
+    if (chartType === 'bar') {
+      chartSpecificConfig = {
+        barChartIndexBy,
+        barChartKeys,
+        barChartLayout,
+        barChartGroupMode,
+        barChartReverse,
+        barChartPadding,
+        barChartShowAxisTop,
+        barChartShowAxisRight,
+        barChartShowAxisBottom,
+        barChartShowAxisLeft,
+        barChartEnableGridX,
+        barChartEnableGridY,
+        barChartEnableLabel,
+        barChartLabelSkipWidth,
+        barChartLabelSkipHeight,
+        barChartWidth,
+        barChartHeight,
+      };
+    } else if (chartType === 'line') {
+      chartSpecificConfig = {
+        lineChartEnableGridX,
+        lineChartEnableGridY,
+        lineChartXKey,
+        lineChartYKeys,
+        lineChartCurve,
+        lineChartEnablePoints,
+        lineChartPointSize,
+        lineChartEnableArea,
+        lineChartLineWidth,
+        lineChartPointBorderWidth,
+        lineChartPointLabel,
+        lineChartPointLabelYOffset,
+        lineChartUseThemeBackgroundForPointColor,
+        lineChartCustomPointColor,
+        lineChartAreaOpacity,
+        lineChartUseMesh,
+        lineChartXScaleType,
+        lineChartMarginTop,
+        lineChartMarginRight,
+        lineChartMarginBottom,
+        lineChartMarginLeft,
+        lineChartColorsScheme,
+        lineChartWidth,
+        lineChartHeight,
+      };
+    } else if (chartType === 'pie') {
+      chartSpecificConfig = {
+        pieChartIdKey,
+        pieChartValueKey,
+        pieChartInnerRadius,
+        pieChartOuterRadius,
+        pieChartPadAngle,
+        pieChartCornerRadius,
+        pieChartColorsScheme,
+        pieChartBorderWidth,
+        pieChartBorderColor,
+        pieChartEnableArcLabels,
+        pieChartArcLabel,
+        pieChartArcLabelSkipAngle,
+        pieChartArcLabelTextColor,
+        pieChartStartAngle,
+        pieChartEndAngle,
+        pieChartSortByValue,
+        pieChartIsInteractive,
+        pieChartRole,
+        pieChartMarginTop,
+        pieChartMarginRight,
+        pieChartMarginBottom,
+        pieChartMarginLeft,
+        pieChartEnableArcLinkLabels,
+        pieChartArcLinkLabel,
+        pieChartArcLinkLabelsSkipAngle,
+        pieChartArcLinkLabelsTextColor,
+        pieChartWidth,
+        pieChartHeight,
+      };
+    }
+
+    return { ...baseConfig, ...chartSpecificConfig };
+  };
+
+  const handleSaveWidget = () => {
+    if (!widgetName.trim()) {
+      setSubTitle('Please enter a widget name before saving.');
+      return;
+    }
+    
+    const chartConfig = getChartConfigJson();
+
+    const finalConfig: SavedWidgetConfig = {
+      widgetName: widgetName, // widgetName은 별도로 관리
+      projectId: selectedProjectId || '',
+      projectName: selectedProjectName,
+      ...chartConfig,
+    };
+
+    try {
+      // 1. 기존 위젯 목록을 localStorage에서 가져옵니다.
+      const existingWidgetsRaw = localStorage.getItem('savedWidgets');
+      const existingWidgets = existingWidgetsRaw ? JSON.parse(existingWidgetsRaw) : [];
+
+      // 2. 동일한 이름의 위젯이 있는지 확인합니다.
+      const widgetIndex = existingWidgets.findIndex((w: any) => w.widgetName === widgetName);
+
+      if (widgetIndex > -1) {
+        // 3a. 있으면, 기존 설정을 업데이트합니다.
+        existingWidgets[widgetIndex] = finalConfig;
+      } else {
+        // 3b. 없으면, 새 설정을 추가합니다.
+        existingWidgets.push(finalConfig);
+      }
+
+      // 4. 업데이트된 목록을 다시 localStorage에 저장합니다.
+      localStorage.setItem('savedWidgets', JSON.stringify(existingWidgets));
+
+      console.log("Widget configuration saved to localStorage:", JSON.stringify(finalConfig, null, 2));
+      setSubTitle(`Widget "${widgetName}" configuration has been saved to LocalStorage.`);
+      setPreviewConfig(finalConfig); // Update the state for preview
+
+    } catch (error) {
+      console.error("Failed to save widget to LocalStorage:", error);
+      setSubTitle("Error: Could not save widget configuration. Check browser permissions or storage limits.");
+    }
   };
 
   return (
@@ -652,6 +873,35 @@ const MakeWidget01: React.FC = () => {
           pieChartHeight={pieChartHeight}
           setPieChartHeight={setPieChartHeight}
         />
+      )}
+
+      {/* Save Widget Area */}
+      {currentStep === 'save' && (
+        <div style={{ marginTop: '30px', padding: '15px', border: '1px solid #ddd' }}>
+          <h4>Save Widget</h4>
+          <div>
+            <label htmlFor="widgetName">Widget Name: </label>
+            <input
+              type="text"
+              id="widgetName"
+              value={widgetName}
+              onChange={(e) => setWidgetName(e.target.value)}
+              placeholder="Enter widget name"
+              style={{ width: '300px', padding: '8px', marginRight: '10px' }}
+            />
+            <button onClick={handleSaveWidget} style={{ padding: '8px 15px', backgroundColor: '#28a745', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
+              Save Widget
+            </button>
+          </div>
+          <div style={{ marginTop: '20px' }}>
+            <h5>Live Widget Configuration Preview:</h5>
+            <pre style={{ background: '#f8f8f8', padding: '15px', borderRadius: '4px', overflowX: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
+              <code>
+                {JSON.stringify(previewConfig, null, 2)}
+              </code>
+              </pre>
+          </div>
+        </div>
       )}
     </div>
   );

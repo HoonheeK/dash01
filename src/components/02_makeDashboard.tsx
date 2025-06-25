@@ -1,0 +1,504 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { DndContext, pointerWithin, rectIntersection, PointerSensor, useSensor, useSensors, DragOverlay } from '@dnd-kit/core';
+import { useDraggable, useDroppable } from '@dnd-kit/core'; // rectIntersection 추가
+import { Task, getTasksForProject } from '../services/api'; // Task 및 getTasksForProject import
+import ChartConfigurator from './ChartConfigurator'; // ChartConfigurator import
+import { CSS } from '@dnd-kit/utilities';
+import { ColorSchemeId } from '@nivo/colors'; // ColorSchemeId import
+
+// LocalStorage에 저장된 위젯 설정 타입
+interface SavedWidgetConfig {
+    widgetName: string;
+    chartType: 'bar' | 'line' | 'pie'; // 위젯이 사용할 차트 타입 정의 (Nivo에 맞게 변경)
+    projectId: string; // 프로젝트 ID 추가
+    projectName: string; // 프로젝트 이름 추가
+    confirmedTaskColumnKeys: string[]; // 확정된 Task 컬럼 키 (배열로 저장)
+
+    // Bar Chart Configs (from ChartConfiguratorProps)
+    barChartIndexBy: string;
+    barChartKeys: string[];
+    barChartLayout: 'vertical' | 'horizontal';
+    barChartGroupMode: 'stacked' | 'grouped';
+    barChartReverse: boolean;
+    barChartPadding: number;
+    barChartShowAxisTop: boolean;
+    barChartShowAxisRight: boolean;
+    barChartShowAxisBottom: boolean;
+    barChartShowAxisLeft: boolean;
+    barChartEnableGridX: boolean;
+    barChartEnableGridY: boolean;
+    barChartEnableLabel: boolean;
+    barChartLabelSkipWidth: number;
+    barChartLabelSkipHeight: number;
+    barChartWidth: string;
+    barChartHeight: number;
+
+    // Line Chart Configs (from ChartConfiguratorProps)
+    lineChartEnableGridX: boolean;
+    lineChartEnableGridY: boolean;
+    lineChartXKey: string;
+    lineChartYKeys: string[];
+    lineChartCurve: 'linear' | 'cardinal' | 'step' | 'monotoneX';
+    lineChartEnablePoints: boolean;
+    lineChartPointSize: number;
+    lineChartEnableArea: boolean;
+    lineChartLineWidth: number;
+    lineChartPointBorderWidth: number;
+    lineChartPointLabel: string;
+    lineChartPointLabelYOffset: number;
+    lineChartUseThemeBackgroundForPointColor: boolean;
+    lineChartCustomPointColor: string;
+    lineChartAreaOpacity: number;
+    lineChartUseMesh: boolean;
+    lineChartXScaleType: 'point' | 'linear';
+    lineChartMarginTop: number;
+    lineChartMarginRight: number;
+    lineChartMarginBottom: number;
+    lineChartMarginLeft: number;
+    lineChartColorsScheme: string; // ColorSchemeId
+    lineChartWidth: string;
+    lineChartHeight: number;
+
+    // Pie Chart Configs (from ChartConfiguratorProps)
+    pieChartStartAngle: number;
+    pieChartEndAngle: number;
+    pieChartSortByValue: boolean;
+    pieChartIsInteractive: boolean;
+    pieChartRole: string;
+    pieChartMarginTop: number;
+    pieChartMarginRight: number;
+    pieChartMarginBottom: number;
+    pieChartMarginLeft: number;
+    pieChartEnableArcLinkLabels: boolean;
+    pieChartArcLinkLabel: string;
+    pieChartArcLinkLabelsSkipAngle: number;
+    pieChartArcLinkLabelsTextColor: string;
+    pieChartIdKey: string;
+    pieChartValueKey: string;
+    pieChartInnerRadius: number;
+    pieChartOuterRadius: number;
+    pieChartPadAngle: number;
+    pieChartCornerRadius: number;
+    pieChartColorsScheme: string; // ColorSchemeId
+    pieChartBorderWidth: number;
+    pieChartBorderColor: string;
+    pieChartEnableArcLabels: boolean;
+    pieChartArcLabel: string;
+    pieChartArcLabelSkipAngle: number;
+    pieChartArcLabelTextColor: string;
+    pieChartWidth: string;
+    pieChartHeight: number;
+}
+
+// 대시보드 캔버스에 배치된 위젯 인스턴스 타입
+interface DashboardWidget extends SavedWidgetConfig {
+    id: string; // 캔버스 위젯의 고유 ID
+    top: number; // 위치
+    left: number; // 위치
+    tasks?: Task[]; // 이 위젯 인스턴스에 대한 Task 데이터
+}
+
+// --- Draggable Widget in the List (dnd-kit 버전) ---
+interface DraggableWidgetProps {
+    config: SavedWidgetConfig;
+}
+
+const DraggableWidget: React.FC<DraggableWidgetProps> = ({ config }) => {
+    const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+        id: `list-widget-${config.widgetName}`, // 목록 위젯은 고유 ID를 가집니다.
+        data: { type: 'listWidget', config: config }, // 드래그 시 전달할 데이터 (transform은 DragOverlay에서 처리)
+    });
+    return (
+        <div
+            ref={setNodeRef} // setNodeRef를 DOM 노드에 연결
+            style={{
+                padding: '8px',
+                margin: '0 0 8px 0',
+                backgroundColor: 'white',
+                border: '1px solid #ddd',
+                borderRadius: '4px', // transform: CSS.Transform.toString(transform), // 드래그 오버레이에서 처리하므로 여기서는 적용하지 않습니다.
+                cursor: 'grab', // CSS cursor 속성
+                opacity: isDragging ? 0.4 : 1, // 드래그 중인 요소의 투명도 조절
+            }}
+            {...listeners} // 드래그 이벤트를 수신하는 리스너
+            {...attributes} // 접근성 속성
+        >
+            {config.widgetName}
+        </div>
+    );
+};
+
+// --- Widget on the Canvas ---
+interface CanvasWidgetProps {
+    widget: DashboardWidget;
+    getTaskValue: (task: Task, key: string) => any; // Helper function passed down
+}
+
+const CanvasWidget: React.FC<CanvasWidgetProps> = ({ widget, getTaskValue }) => {
+    const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+        id: widget.id, // 캔버스 위젯의 고유 ID
+        data: { type: 'canvasWidget', widget: widget }, // 드래그 시 전달할 데이터 (transform은 DragOverlay에서 처리)
+    });
+
+    // 드래그 중인 요소의 시각적 피드백
+    const style: React.CSSProperties = {
+        position: 'absolute',
+        top: widget.top,
+        left: widget.left,
+        width: parseInt(widget.barChartWidth || widget.lineChartWidth || widget.pieChartWidth || '400px'), // 위젯 너비
+        height: widget.barChartHeight || widget.lineChartHeight || widget.pieChartHeight || 300, // 위젯 높이
+        border: '1px dashed #3498db',
+        backgroundColor: 'rgba(255, 255, 255, 0.9)',
+        cursor: 'grab',
+        boxSizing: 'border-box',
+        // 드래그 중일 때만 transform을 적용하여 오버레이와 분리
+        transform: isDragging ? CSS.Transform.toString(transform) : undefined,
+        opacity: isDragging ? 0.5 : 1,
+    };
+    return (
+        <div
+            ref={setNodeRef}
+            style={style}
+            {...listeners}
+            {...attributes}
+        >
+            <div style={{ padding: '5px', fontWeight: 'bold', borderBottom: '1px solid #eee', height: '25px', boxSizing: 'border-box' }}>
+                {widget.widgetName}
+            </div>
+            <div style={{ width: '100%', height: 'calc(100% - 25px)', position: 'relative' }}>
+                {widget.tasks ? (
+                    <ChartConfigurator
+                        tasks={widget.tasks}
+                        confirmedTaskColumnKeys={new Set(widget.confirmedTaskColumnKeys)}
+                        getTaskValue={getTaskValue}
+                        chartType={widget.chartType}
+                        setChartType={() => {}} // Read-only in dashboard
+                        // Bar Chart Props
+                        barChartIndexBy={widget.barChartIndexBy} setBarChartIndexBy={() => {}}
+                        barChartKeys={widget.barChartKeys} setBarChartKeys={() => {}}
+                        barChartLayout={widget.barChartLayout} setBarChartLayout={() => {}}
+                        barChartGroupMode={widget.barChartGroupMode} setBarChartGroupMode={() => {}}
+                        barChartReverse={widget.barChartReverse} setBarChartReverse={() => {}}
+                        barChartPadding={widget.barChartPadding} setBarChartPadding={() => {}}
+                        barChartShowAxisTop={widget.barChartShowAxisTop} setBarChartShowAxisTop={() => {}}
+                        barChartShowAxisRight={widget.barChartShowAxisRight} setBarChartShowAxisRight={() => {}}
+                        barChartShowAxisBottom={widget.barChartShowAxisBottom} setBarChartShowAxisBottom={() => {}}
+                        barChartShowAxisLeft={widget.barChartShowAxisLeft} setBarChartShowAxisLeft={() => {}}
+                        barChartEnableGridX={widget.barChartEnableGridX} setBarChartEnableGridX={() => {}}
+                        barChartEnableGridY={widget.barChartEnableGridY} setBarChartEnableGridY={() => {}}
+                        barChartEnableLabel={widget.barChartEnableLabel} setBarChartEnableLabel={() => {}}
+                        barChartLabelSkipWidth={widget.barChartLabelSkipWidth} setBarChartLabelSkipWidth={() => {}}
+                        barChartLabelSkipHeight={widget.barChartLabelSkipHeight} setBarChartLabelSkipHeight={() => {}}
+                        barChartWidth="100%" setBarChartWidth={() => {}} // ChartConfigurator 내부에서 100%로 설정
+                        barChartHeight={widget.barChartHeight - 25} setBarChartHeight={() => {}} // 위젯 헤더 높이만큼 빼줌
+                        // Line Chart Props
+                        lineChartEnableGridX={widget.lineChartEnableGridX} setLineChartEnableGridX={()=>{}}
+                        lineChartEnableGridY={widget.lineChartEnableGridY} setLineChartEnableGridY={()=>{}}
+                        lineChartXKey={widget.lineChartXKey} setLineChartXKey={()=>{}}
+                        lineChartYKeys={widget.lineChartYKeys} setLineChartYKeys={()=>{}}
+                        lineChartCurve={widget.lineChartCurve} setLineChartCurve={()=>{}}
+                        lineChartEnablePoints={widget.lineChartEnablePoints} setLineChartEnablePoints={()=>{}}
+                        lineChartPointSize={widget.lineChartPointSize} setLineChartPointSize={()=>{}}
+                        lineChartEnableArea={widget.lineChartEnableArea} setLineChartEnableArea={()=>{}}
+                        lineChartLineWidth={widget.lineChartLineWidth} setLineChartLineWidth={()=>{}}
+                        lineChartPointBorderWidth={widget.lineChartPointBorderWidth} setLineChartPointBorderWidth={()=>{}}
+                        lineChartPointLabel={widget.lineChartPointLabel} setLineChartPointLabel={()=>{}}
+                        lineChartPointLabelYOffset={widget.lineChartPointLabelYOffset} setLineChartPointLabelYOffset={()=>{}}
+                        lineChartUseThemeBackgroundForPointColor={widget.lineChartUseThemeBackgroundForPointColor} setLineChartUseThemeBackgroundForPointColor={()=>{}}
+                        lineChartCustomPointColor={widget.lineChartCustomPointColor} setLineChartCustomPointColor={()=>{}}
+                        lineChartAreaOpacity={widget.lineChartAreaOpacity} setLineChartAreaOpacity={()=>{}}
+                        lineChartUseMesh={widget.lineChartUseMesh} setLineChartUseMesh={()=>{}}
+                        lineChartXScaleType={widget.lineChartXScaleType} setLineChartXScaleType={()=>{}}
+                        lineChartMarginTop={widget.lineChartMarginTop} setLineChartMarginTop={()=>{}}
+                        lineChartMarginRight={widget.lineChartMarginRight} setLineChartMarginRight={()=>{}}
+                        lineChartMarginBottom={widget.lineChartMarginBottom} setLineChartMarginBottom={()=>{}}
+                        lineChartMarginLeft={widget.lineChartMarginLeft} setLineChartMarginLeft={()=>{}}
+                        lineChartColorsScheme={widget.lineChartColorsScheme as ColorSchemeId} setLineChartColorsScheme={()=>{}}
+                        lineChartWidth="100%" setLineChartWidth={()=>{}}
+                        lineChartHeight={widget.lineChartHeight - 25} setLineChartHeight={()=>{}}
+                        // Pie Chart Props
+                        pieChartStartAngle={widget.pieChartStartAngle} setPieChartStartAngle={()=>{}}
+                        pieChartEndAngle={widget.pieChartEndAngle} setPieChartEndAngle={()=>{}}
+                        pieChartSortByValue={widget.pieChartSortByValue} setPieChartSortByValue={()=>{}}
+                        pieChartIsInteractive={widget.pieChartIsInteractive} setPieChartIsInteractive={()=>{}}
+                        pieChartRole={widget.pieChartRole} setPieChartRole={()=>{}}
+                        pieChartMarginTop={widget.pieChartMarginTop} setPieChartMarginTop={()=>{}}
+                        pieChartMarginRight={widget.pieChartMarginRight} setPieChartMarginRight={()=>{}}
+                        pieChartMarginBottom={widget.pieChartMarginBottom} setPieChartMarginBottom={()=>{}}
+                        pieChartMarginLeft={widget.pieChartMarginLeft} setPieChartMarginLeft={()=>{}}
+                        pieChartEnableArcLinkLabels={widget.pieChartEnableArcLinkLabels} setPieChartEnableArcLinkLabels={()=>{}}
+                        pieChartArcLinkLabel={widget.pieChartArcLinkLabel} setPieChartArcLinkLabel={()=>{}}
+                        pieChartArcLinkLabelsSkipAngle={widget.pieChartArcLinkLabelsSkipAngle} setPieChartArcLinkLabelsSkipAngle={()=>{}}
+                        pieChartArcLinkLabelsTextColor={widget.pieChartArcLinkLabelsTextColor} setPieChartArcLinkLabelsTextColor={()=>{}}
+                        pieChartIdKey={widget.pieChartIdKey} setPieChartIdKey={()=>{}}
+                        pieChartValueKey={widget.pieChartValueKey} setPieChartValueKey={()=>{}}
+                        pieChartInnerRadius={widget.pieChartInnerRadius} setPieChartInnerRadius={()=>{}}
+                        pieChartOuterRadius={widget.pieChartOuterRadius} setPieChartOuterRadius={()=>{}}
+                        pieChartPadAngle={widget.pieChartPadAngle} setPieChartPadAngle={()=>{}}
+                        pieChartCornerRadius={widget.pieChartCornerRadius} setPieChartCornerRadius={()=>{}}
+                        pieChartColorsScheme={widget.pieChartColorsScheme as ColorSchemeId} setPieChartColorsScheme={()=>{}}
+                        pieChartBorderWidth={widget.pieChartBorderWidth} setPieChartBorderWidth={()=>{}}
+                        pieChartBorderColor={widget.pieChartBorderColor} setPieChartBorderColor={()=>{}}
+                        pieChartEnableArcLabels={widget.pieChartEnableArcLabels} setPieChartEnableArcLabels={()=>{}}
+                        pieChartArcLabel={widget.pieChartArcLabel} setPieChartArcLabel={()=>{}}
+                        pieChartArcLabelSkipAngle={widget.pieChartArcLabelSkipAngle} setPieChartArcLabelSkipAngle={()=>{}}
+                        pieChartArcLabelTextColor={widget.pieChartArcLabelTextColor} setPieChartArcLabelTextColor={()=>{}}
+                        pieChartWidth="100%" setPieChartWidth={()=>{}}
+                        pieChartHeight={widget.pieChartHeight - 25} setPieChartHeight={()=>{}}
+                    />
+                ) : (
+                    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', color: '#666' }}>
+                        Loading chart data...
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
+
+// --- Main Dashboard Component (Presentational) ---
+interface MakeDashboardComponentProps {
+    savedWidgets: SavedWidgetConfig[];
+    dashboardWidgets: DashboardWidget[];
+    activeId: string | null;
+    activeWidget: SavedWidgetConfig | DashboardWidget | null;
+    setDroppableNodeRef: (node: HTMLElement | null) => void; // dnd-kit의 setNodeRef는 null을 받을 수 있습니다.
+    getTaskValue: (task: Task, key: string) => any; // Helper function passed down
+    canvasRef: React.RefObject<HTMLDivElement | null>; // useRef(null)로 초기화되므로 null을 허용해야 합니다.
+}
+
+const MakeDashboardComponent: React.FC<MakeDashboardComponentProps> = ({
+    savedWidgets,
+    dashboardWidgets,
+    activeId,
+    activeWidget,
+    setDroppableNodeRef,
+    getTaskValue, // getTaskValue prop 추가
+    canvasRef,
+}) => {
+
+    return (
+        <div style={{ display: 'flex', height: 'calc(100vh - 120px)', fontFamily: 'sans-serif' }}>
+            {/* 위젯 목록 패널 (너비를 vw에서 px로 변경하여 일관성 유지) */}
+            <div style={{ // 너비를 vw에서 px로 변경하여 일관성 유지
+                width: '20vw',
+                borderRight: '1px solid #ccc',
+                padding: '10px',
+                overflowY: 'auto',
+                background: '#f9f9f9'
+            }}>
+                <h3 style={{ marginTop: 0, borderBottom: '1px solid #eee', paddingBottom: '10px' }}>Saved Widgets</h3>
+                {savedWidgets.length > 0 ? (
+                    <div>
+                        {savedWidgets.map((widget, index) => (
+                            <DraggableWidget key={`${widget.widgetName}-${index}`} config={widget} />
+                        ))}
+                    </div>
+                ) : (
+                    <p>No saved widgets found in LocalStorage.</p>
+                )}
+            </div>
+
+            {/* 캔버스 패널 */}
+            <div
+                ref={node => {
+                    setDroppableNodeRef(node); // dnd-kit의 droppable ref 연결
+                    (canvasRef as React.MutableRefObject<HTMLDivElement | null>).current = node; // 기존 ref도 유지
+                }}
+                style={{
+                    flex: 1,
+                    minHeight: '500px',
+                    minWidth: '500px',
+
+                    position: 'relative',
+                    background: '#e9e9e9',
+                    backgroundImage: 'radial-gradient(#d7d7d7 1px, transparent 0)',
+                    backgroundSize: '20px 20px',
+                }}
+            >
+                {dashboardWidgets.map(widget => (
+                    <CanvasWidget key={widget.id} widget={widget} getTaskValue={getTaskValue} />
+                ))}
+            </div>
+
+            {/* 드래그 오버레이: 드래그 중인 요소의 시각적 표현 */}
+            <DragOverlay>
+                {activeId && activeWidget ? (
+                    <div
+                        style={{
+                            padding: '10px',
+                            border: '1px dashed #3498db',
+                            backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                            cursor: 'grabbing',
+                            minWidth: '150px',
+                            minHeight: '50px',
+                            boxSizing: 'border-box',
+                            opacity: 0.8, // 오버레이는 약간 투명하게
+                        }}
+                    >
+                        {activeWidget.widgetName}
+                    </div>
+                ) : null}
+            </DragOverlay>
+        </div>
+    );
+};
+// --- MakeDashboard (Container) ---
+const MakeDashboard: React.FC = () => {
+    const [savedWidgets, setSavedWidgets] = useState<SavedWidgetConfig[]>([]);
+    const [activeId, setActiveId] = useState<string | null>(null);
+    const [dashboardWidgets, setDashboardWidgets] = useState<DashboardWidget[]>([]);
+    const canvasRef = useRef<HTMLDivElement>(null);
+
+    // Helper function to get value from task, handling nested keys
+    const getTaskValue = (task: Task, key: string): any => {
+        if (!key) return undefined;
+        if (key.includes('.')) {
+            const parts = key.split('.');
+            let value: any = task;
+            for (const part of parts) {
+                if (value && typeof value === 'object' && part in value) { value = value[part]; } else { return undefined; }
+            }
+            return value;
+        }
+        return (task as any)[key];
+    };
+
+    // 마운트 시 LocalStorage에서 저장된 위젯 로드
+    useEffect(() => {
+        const widgetsRaw = localStorage.getItem('savedWidgets');
+        if (widgetsRaw) {
+            try {
+                const parsedWidgets = JSON.parse(widgetsRaw);
+                if (Array.isArray(parsedWidgets)) {
+                    setSavedWidgets(parsedWidgets);
+                }
+            } catch (e) {
+                console.error("Failed to parse saved widgets from LocalStorage", e);
+            }
+        }
+    }, []);
+
+    // dnd-kit 센서 설정
+    const sensors = useSensors(
+        useSensor(PointerSensor, {
+            activationConstraint: {
+                distance: 8, // 8px 이동해야 드래그 시작으로 인식
+            },
+        })
+    );
+
+    // 캔버스 드롭 영역 설정
+    // useDroppable 훅은 컴포넌트 내에서 호출되어야 합니다.
+    const { setNodeRef: setDroppableNodeRef } = useDroppable({
+        id: 'dashboard-canvas', // 드롭 가능한 캔버스의 ID
+    });
+
+    const handleDragStart = (event: any) => {
+        console.log("--- Drag Start ---");
+        console.log("Active item:", event.active);
+        setActiveId(event.active.id);
+    };
+
+    const handleDragMove = (event: any) => {
+        // 이 로그는 매우 자주 발생하지만, 움직임을 디버깅하는 데 유용합니다.
+        // 필요 없을 때는 주석 처리할 수 있습니다.
+        console.log(`-- Drag Move -- Delta: { x: ${Math.round(event.delta.x)}, y: ${Math.round(event.delta.y)} }`);
+    };
+
+    const handleDragOver = (event: any) => {
+        console.log(`- Drag Over - Draggable: ${event.active.id} is now over ${event.over?.id}`);
+    };
+
+    // 드래그 종료 시 호출되는 핸들러
+    const handleDragEnd = (event: any) => {
+        console.log("--- Drag End ---");
+        const { active, delta, over } = event; // delta는 드래그 시작점으로부터의 이동 거리
+
+        setActiveId(null); // 드래그 종료 시 activeId 초기화
+
+        // 드롭 영역 밖으로 드롭된 경우 무시
+        if (!over) {
+            console.log("Result: Dropped outside of any droppable area. Aborting.");
+            return;
+        }
+
+        const draggedItemData = active.data.current;
+        console.log("Final event state:", { active, over, delta });
+
+        // 목록의 위젯을 캔버스 위로 드롭한 경우
+        if (draggedItemData?.type === 'listWidget' && over.id === 'dashboard-canvas') {
+            const config = draggedItemData.config as SavedWidgetConfig;
+            const canvasRect = canvasRef.current?.getBoundingClientRect();
+            if (!canvasRect) return;
+
+            // 드래그 시작 시점의 요소 위치
+            const initial = active.rect.current.initial;
+            console.log("Source: New widget from list. Initial position:", initial);
+            if (!initial) return;
+
+            const newLeft = Math.round(initial.left + delta.x - canvasRect.left);
+            const newTop = Math.round(initial.top + delta.y - canvasRect.top);
+            console.log(`handleDragEnd - newLeft: ${newLeft}, newTop: ${newTop}`);
+            
+            // 새 위젯 객체 생성 (SavedWidgetConfig의 모든 속성을 포함)
+            const newWidget: DashboardWidget = {
+                ...config, // SavedWidgetConfig의 모든 속성을 복사
+                id: `${config.widgetName}-${Date.now()}`,
+                left: newLeft,
+                top: newTop,
+            };
+            console.log("Action: Adding new widget to dashboard.", newWidget);
+            setDashboardWidgets(widgets => [...widgets, newWidget]);
+
+            // 새 위젯에 대한 Task 데이터 가져오기
+            getTasksForProject(config.projectId).then(tasks => {
+                setDashboardWidgets(currentWidgets =>
+                    currentWidgets.map(w => (w.id === newWidget.id ? { ...w, tasks } : w))
+                );
+                console.log(`Post-Action: Tasks fetched and updated for widget '${newWidget.id}'.`);
+            }).catch(error => console.error(`Failed to fetch tasks for project ${config.projectId}:`, error));
+        } 
+        // 캔버스 위의 기존 위젯을 이동하는 경우
+        else if (draggedItemData?.type === 'canvasWidget') {
+            const widget = draggedItemData.widget as DashboardWidget;
+            const newLeft = Math.round(widget.left + delta.x); // 델타값을 기반으로 새 위치 계산
+            const newTop = Math.round(widget.top + delta.y); // 델타값을 기반으로 새 위치 계산
+            console.log(`Action: Moving existing widget '${widget.id}' to new position { left: ${newLeft}, top: ${newTop} }`);
+            setDashboardWidgets(widgets => widgets.map(w => (w.id === widget.id ? { ...w, left: newLeft, top: newTop } : w)));
+        }
+    };
+
+    const handleDragCancel = () => {
+        console.log("--- Drag Cancelled ---");
+        setActiveId(null);
+    };
+
+    const activeWidget = activeId
+        ? (dashboardWidgets.find(w => w.id === activeId) || savedWidgets.find(w => `list-widget-${w.widgetName}` === activeId)) ?? null
+        : null;
+
+    return (
+        // DndContext는 sensors, collisionDetection, 이벤트 핸들러를 설정합니다.
+        <DndContext
+            sensors={sensors} // sensors를 DndContext에 전달
+            collisionDetection={rectIntersection} // 충돌 감지 알고리즘을 rectIntersection으로 변경
+            onDragStart={handleDragStart} // 드래그 시작 이벤트 핸들러
+            onDragMove={handleDragMove}   // 드래그 이동 이벤트 핸들러
+            onDragOver={handleDragOver}     // 드롭 영역 위로 이동 이벤트 핸들러
+            onDragEnd={handleDragEnd} // 드래그 종료 이벤트 핸들러
+            onDragCancel={handleDragCancel} // 드래그 취소 이벤트 핸들러
+        >
+            <MakeDashboardComponent
+                savedWidgets={savedWidgets}
+                dashboardWidgets={dashboardWidgets}
+                activeId={activeId}
+                activeWidget={activeWidget}
+                setDroppableNodeRef={setDroppableNodeRef}
+                getTaskValue={getTaskValue} // getTaskValue prop 전달
+                canvasRef={canvasRef}
+            />
+        </DndContext>
+    );
+};
+export default MakeDashboard;
