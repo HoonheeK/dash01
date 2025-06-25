@@ -1,6 +1,7 @@
 import React from 'react';
 import { ResponsiveBar } from '@nivo/bar';
 import { ResponsiveLine, LineSeries } from '@nivo/line';
+import { ResponsivePie } from '@nivo/pie'; // Import ResponsivePie
 import { ColorSchemeId } from '@nivo/colors';
 import { Task } from '../services/api'; // Assuming Task type is defined here or needs to be passed
 
@@ -10,8 +11,8 @@ interface ChartConfiguratorProps {
   getTaskValue: (task: Task, key: string) => any;
   
   // Chart Type selection
-  chartType: 'bar' | 'line';
-  setChartType: React.Dispatch<React.SetStateAction<'bar' | 'line'>>;
+  chartType: 'bar' | 'line' | 'pie';
+  setChartType: React.Dispatch<React.SetStateAction<'bar' | 'line' | 'pie'>>;
 
   // Bar Chart States
   barChartIndexBy: string;
@@ -98,6 +99,60 @@ interface ChartConfiguratorProps {
   setLineChartWidth: React.Dispatch<React.SetStateAction<string>>;
   lineChartHeight: number;
   setLineChartHeight: React.Dispatch<React.SetStateAction<number>>;
+
+  // Pie Chart States
+  pieChartStartAngle: number;
+  setPieChartStartAngle: React.Dispatch<React.SetStateAction<number>>;
+  pieChartEndAngle: number;
+  setPieChartEndAngle: React.Dispatch<React.SetStateAction<number>>;
+  pieChartSortByValue: boolean;
+  setPieChartSortByValue: React.Dispatch<React.SetStateAction<boolean>>;
+  pieChartIsInteractive: boolean;
+  setPieChartIsInteractive: React.Dispatch<React.SetStateAction<boolean>>;
+  pieChartRole: string;
+  setPieChartRole: React.Dispatch<React.SetStateAction<string>>;
+  pieChartMarginTop: number; setPieChartMarginTop: React.Dispatch<React.SetStateAction<number>>;
+  pieChartMarginRight: number; setPieChartMarginRight: React.Dispatch<React.SetStateAction<number>>;
+  pieChartMarginBottom: number; setPieChartMarginBottom: React.Dispatch<React.SetStateAction<number>>;
+  pieChartMarginLeft: number; setPieChartMarginLeft: React.Dispatch<React.SetStateAction<number>>;
+  pieChartEnableArcLinkLabels: boolean;
+  setPieChartEnableArcLinkLabels: React.Dispatch<React.SetStateAction<boolean>>;
+  pieChartArcLinkLabel: string;
+  setPieChartArcLinkLabel: React.Dispatch<React.SetStateAction<string>>;
+  pieChartArcLinkLabelsSkipAngle: number;
+  setPieChartArcLinkLabelsSkipAngle: React.Dispatch<React.SetStateAction<number>>;
+  pieChartArcLinkLabelsTextColor: string;
+  setPieChartArcLinkLabelsTextColor: React.Dispatch<React.SetStateAction<string>>;
+  pieChartIdKey: string;
+  setPieChartIdKey: React.Dispatch<React.SetStateAction<string>>;
+  pieChartValueKey: string;
+  setPieChartValueKey: React.Dispatch<React.SetStateAction<string>>;
+  pieChartInnerRadius: number;
+  setPieChartInnerRadius: React.Dispatch<React.SetStateAction<number>>;
+  pieChartOuterRadius: number;
+  setPieChartOuterRadius: React.Dispatch<React.SetStateAction<number>>;
+  pieChartPadAngle: number;
+  setPieChartPadAngle: React.Dispatch<React.SetStateAction<number>>;
+  pieChartCornerRadius: number;
+  setPieChartCornerRadius: React.Dispatch<React.SetStateAction<number>>;
+  pieChartColorsScheme: ColorSchemeId;
+  setPieChartColorsScheme: React.Dispatch<React.SetStateAction<ColorSchemeId>>;
+  pieChartBorderWidth: number;
+  setPieChartBorderWidth: React.Dispatch<React.SetStateAction<number>>;
+  pieChartBorderColor: string;
+  setPieChartBorderColor: React.Dispatch<React.SetStateAction<string>>;
+  pieChartEnableArcLabels: boolean;
+  setPieChartEnableArcLabels: React.Dispatch<React.SetStateAction<boolean>>;
+  pieChartArcLabel: string;
+  setPieChartArcLabel: React.Dispatch<React.SetStateAction<string>>;
+  pieChartArcLabelSkipAngle: number;
+  setPieChartArcLabelSkipAngle: React.Dispatch<React.SetStateAction<number>>;
+  pieChartArcLabelTextColor: string;
+  setPieChartArcLabelTextColor: React.Dispatch<React.SetStateAction<string>>;
+  pieChartWidth: string;
+  setPieChartWidth: React.Dispatch<React.SetStateAction<string>>;
+  pieChartHeight: number;
+  setPieChartHeight: React.Dispatch<React.SetStateAction<number>>;
 }
 
 const ChartConfigurator: React.FC<ChartConfiguratorProps> = ({
@@ -188,9 +243,61 @@ const ChartConfigurator: React.FC<ChartConfiguratorProps> = ({
   setLineChartWidth,
   lineChartHeight,
   setLineChartHeight,
+  pieChartStartAngle,
+  setPieChartStartAngle,
+  pieChartEndAngle,
+  setPieChartEndAngle,
+  pieChartSortByValue,
+  setPieChartSortByValue,
+  pieChartIsInteractive,
+  setPieChartIsInteractive,
+  pieChartRole,
+  setPieChartRole,
+  pieChartMarginTop, setPieChartMarginTop,
+  pieChartMarginRight, setPieChartMarginRight,
+  pieChartMarginBottom, setPieChartMarginBottom,
+  pieChartMarginLeft, setPieChartMarginLeft,
+  pieChartIdKey,
+  setPieChartIdKey,
+  pieChartValueKey,
+  setPieChartValueKey,
+  pieChartInnerRadius,
+  setPieChartInnerRadius,
+  pieChartOuterRadius,
+  setPieChartOuterRadius,
+  pieChartPadAngle,
+  setPieChartPadAngle,
+  pieChartCornerRadius,
+  setPieChartCornerRadius,
+  pieChartColorsScheme,
+  setPieChartColorsScheme,
+  pieChartBorderWidth,
+  setPieChartBorderWidth,
+  pieChartBorderColor,
+  setPieChartBorderColor,
+  pieChartEnableArcLabels,
+  setPieChartEnableArcLabels,
+  pieChartArcLabel,
+  setPieChartArcLabel,
+  pieChartArcLabelSkipAngle,
+  setPieChartArcLabelSkipAngle,
+  pieChartArcLabelTextColor,
+  setPieChartArcLabelTextColor,
+  pieChartEnableArcLinkLabels, // Changed
+  setPieChartEnableArcLinkLabels, // Changed
+  pieChartArcLinkLabel, // Changed
+  setPieChartArcLinkLabel, // Changed
+  pieChartArcLinkLabelsSkipAngle, // Changed
+  setPieChartArcLinkLabelsSkipAngle, // Changed
+  pieChartArcLinkLabelsTextColor, // Changed
+  setPieChartArcLinkLabelsTextColor, // Changed
+  pieChartWidth,
+  setPieChartWidth,
+  pieChartHeight,
+  setPieChartHeight,
 }) => {
   const handleChartTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const newType = e.target.value as 'bar' | 'line';
+    const newType = e.target.value as 'bar' | 'line' | 'pie';
     setChartType(newType);
   };
 
@@ -228,6 +335,34 @@ const ChartConfigurator: React.FC<ChartConfiguratorProps> = ({
     });
   };
 
+  const getPieChartData = () => {
+    if (!pieChartIdKey || tasks.length === 0) {
+      return [];
+    }
+
+    const aggregatedData: { [key: string]: { id: string | number; value: number } } = {};
+
+    tasks.forEach(task => {
+      const idValue = getTaskValue(task, pieChartIdKey);
+      if (idValue !== undefined && idValue !== null) {
+        const key = String(idValue); // Use string as key for aggregation map
+
+        if (!aggregatedData[key]) {
+          aggregatedData[key] = { id: idValue, value: 0 };
+        }
+
+        if (pieChartValueKey) {
+          const rawValue = getTaskValue(task, pieChartValueKey);
+          const numericValue = rawValue !== null && rawValue !== undefined && !isNaN(Number(rawValue)) ? Number(rawValue) : 0;
+          aggregatedData[key].value += numericValue;
+        } else {
+          aggregatedData[key].value += 1; // Default to counting occurrences
+        }
+      }
+    });
+    return Object.values(aggregatedData);
+  };
+
   return (
     <div style={{ marginTop: '30px'}}>
       <h3>Chart Configuration</h3>
@@ -240,6 +375,7 @@ const ChartConfigurator: React.FC<ChartConfiguratorProps> = ({
             <select id="chartType" value={chartType} onChange={handleChartTypeChange}>
               <option value="bar">Bar Chart</option>
               <option value="line">Line Chart</option>
+              <option value="pie">Pie Chart</option>
             </select>
           </div>
 
@@ -563,6 +699,173 @@ const ChartConfigurator: React.FC<ChartConfiguratorProps> = ({
                     enableArea={lineChartEnableArea}
                     areaOpacity={lineChartAreaOpacity}
                     useMesh={lineChartUseMesh}
+                    legends={[]} // Line chart legends are usually handled differently or can be added here
+                  />
+                </div>
+              )}
+            </div>
+          )}
+
+          {chartType === 'pie' && (
+            <div style={{ marginTop: '20px', padding: '15px', border: '1px solid #ddd' }}>
+              <h4>Pie Chart Configuration (<code>@nivo/pie</code>)</h4>
+              <div>
+                <label htmlFor="pieIdKey">ID Key (Category): </label>
+                <select id="pieIdKey" value={pieChartIdKey} onChange={(e) => setPieChartIdKey(e.target.value)}>
+                  <option value="">-- Select ID Key --</option>
+                  {Array.from(confirmedTaskColumnKeys).map(key => <option key={key} value={key}>{key}</option>)}
+                </select>
+              </div>
+              <div>
+                <label htmlFor="pieValueKey">Value Key (Optional, for summing): </label>
+                <select id="pieValueKey" value={pieChartValueKey} onChange={(e) => setPieChartValueKey(e.target.value)}>
+                  <option value="">-- Count occurrences --</option>
+                  {Array.from(confirmedTaskColumnKeys)
+                    .filter(key => key !== pieChartIdKey)
+                    .map(key => <option key={key} value={key}>{key}</option>)}
+                </select>
+              </div>
+              <div style={{ marginTop: '10px' }}>
+                <label htmlFor="pieInnerRadius">Inner Radius (%): </label>
+                <input type="number" id="pieInnerRadius" value={pieChartInnerRadius * 100} onChange={(e) => setPieChartInnerRadius(parseInt(e.target.value, 10) / 100)} min="0" max="100" style={{ width: '60px' }} />
+                <label htmlFor="pieOuterRadius" style={{ marginLeft: '15px' }}>Outer Radius (%): </label>
+                <input type="number" id="pieOuterRadius" value={pieChartOuterRadius * 100} onChange={(e) => setPieChartOuterRadius(parseInt(e.target.value, 10) / 100)} min="0" max="100" style={{ width: '60px' }} />
+                <label htmlFor="piePadAngle" style={{ marginLeft: '15px' }}>Pad Angle (deg): </label>
+                <input type="number" id="piePadAngle" value={pieChartPadAngle} onChange={(e) => setPieChartPadAngle(parseInt(e.target.value, 10))} min="0" max="45" style={{ width: '60px' }} />
+                <label htmlFor="pieCornerRadius" style={{ marginLeft: '15px' }}>Corner Radius (px): </label>
+                <input type="number" id="pieCornerRadius" value={pieChartCornerRadius} onChange={(e) => setPieChartCornerRadius(parseInt(e.target.value, 10))} min="0" style={{ width: '60px' }} />
+              </div>
+              <div style={{ marginTop: '10px' }}>
+                <label htmlFor="pieBorderWidth">Border Width (px): </label>
+                <input type="number" id="pieBorderWidth" value={pieChartBorderWidth} onChange={(e) => setPieChartBorderWidth(parseInt(e.target.value, 10))} min="0" style={{ width: '60px' }} />
+                <label htmlFor="pieBorderColor" style={{ marginLeft: '15px' }}>Border Color: </label>
+                <input type="color" id="pieBorderColor" value={pieChartBorderColor} onChange={(e) => setPieChartBorderColor(e.target.value)} style={{ width: '60px' }} />
+              </div>
+              <div style={{ marginTop: '10px' }}>
+                <label htmlFor="pieColorsScheme">Color Scheme: </label>
+                <select id="pieColorsScheme" value={pieChartColorsScheme} onChange={e => setPieChartColorsScheme(e.target.value as ColorSchemeId)}>
+                  <option value="nivo">nivo</option>
+                  <option value="category10">category10</option>
+                  <option value="accent">accent</option>
+                  <option value="dark2">dark2</option>
+                  <option value="paired">paired</option>
+                  <option value="pastel1">pastel1</option>
+                  <option value="pastel2">pastel2</option>
+                  <option value="set1">set1</option>
+                  <option value="set2">set2</option>
+                  <option value="set3">set3</option>
+                  <option value="brown_blueGreen">brown_blueGreen</option>
+                  <option value="purpleRed_green">purpleRed_green</option>
+                  <option value="pink_yellowGreen">pink_yellowGreen</option>
+                  <option value="purple_orange">purple_orange</option>
+                  <option value="red_blue">red_blue</option>
+                  <option value="red_grey">red_grey</option>
+                  <option value="red_yellow_blue">red_yellow_blue</option>
+                  <option value="red_yellow_green">red_yellow_green</option>
+                  <option value="spectral">spectral</option>
+                </select>
+              </div>
+              <div style={{ marginTop: '10px' }}>
+                <label>
+                  <input type="checkbox" checked={pieChartEnableArcLabels} onChange={e => setPieChartEnableArcLabels(e.target.checked)} />
+                  Enable Arc Labels
+                </label>
+                {pieChartEnableArcLabels && (
+                  <>
+                    <label htmlFor="pieArcLabel" style={{ marginLeft: '15px' }}>Label Content: </label>
+                    <select id="pieArcLabel" value={pieChartArcLabel} onChange={e => setPieChartArcLabel(e.target.value)}>
+                      <option value="id">ID</option>
+                      <option value="value">Value</option>
+                      <option value="formattedValue">Formatted Value</option>
+                    </select>
+                    <label htmlFor="pieArcLabelSkipAngle" style={{ marginLeft: '15px' }}>Skip Angle (deg): </label>
+                    <input type="number" id="pieArcLabelSkipAngle" value={pieChartArcLabelSkipAngle} onChange={e => setPieChartArcLabelSkipAngle(parseInt(e.target.value, 10))} min="0" style={{ width: '60px' }} />
+                    <label htmlFor="pieArcLabelTextColor" style={{ marginLeft: '15px' }}>Text Color:</label>
+                    <input type="color" id="pieArcLabelTextColor" value={pieChartArcLabelTextColor} onChange={e => setPieChartArcLabelTextColor(e.target.value)} style={{ width: '60px' }}/>
+                  </>
+                )}
+              </div>
+              <div style={{ marginTop: '10px' }}>
+                <label htmlFor="pieStartAngle">Start Angle (deg): </label>
+                <input type="number" id="pieStartAngle" value={pieChartStartAngle} onChange={(e) => setPieChartStartAngle(parseInt(e.target.value, 10))} style={{ width: '60px' }} />
+                <label htmlFor="pieEndAngle" style={{ marginLeft: '15px' }}>End Angle (deg): </label>
+                <input type="number" id="pieEndAngle" value={pieChartEndAngle} onChange={(e) => setPieChartEndAngle(parseInt(e.target.value, 10))} style={{ width: '60px' }} />
+                <label style={{ marginLeft: '15px' }}>
+                  <input type="checkbox" checked={pieChartSortByValue} onChange={e => setPieChartSortByValue(e.target.checked)} />
+                  Sort by Value
+                </label>
+              </div>
+              <div style={{ marginTop: '10px' }}>
+                <label>
+                  <input type="checkbox" checked={pieChartIsInteractive} onChange={e => setPieChartIsInteractive(e.target.checked)} />
+                  Is Interactive
+                </label>
+                <label htmlFor="pieRole" style={{ marginLeft: '15px' }}>Role: </label>
+                <input type="text" id="pieRole" value={pieChartRole} onChange={(e) => setPieChartRole(e.target.value)} style={{ width: '100px' }} />
+              </div>
+              <div style={{ marginTop: '10px' }}>
+                <span style={{ marginRight: '10px', fontWeight: 'bold' }}>Margins (px):</span>
+                <label htmlFor="pieMarginTop">Top: </label>
+                <input type="number" id="pieMarginTop" value={pieChartMarginTop} onChange={e => setPieChartMarginTop(parseInt(e.target.value, 10))} style={{ width: '50px' }} />
+                <label htmlFor="pieMarginRight" style={{ marginLeft: '10px' }}>Right: </label>
+                <input type="number" id="pieMarginRight" value={pieChartMarginRight} onChange={e => setPieChartMarginRight(parseInt(e.target.value, 10))} style={{ width: '50px' }} />
+                <label htmlFor="pieMarginBottom" style={{ marginLeft: '10px' }}>Bottom: </label>
+                <input type="number" id="pieMarginBottom" value={pieChartMarginBottom} onChange={e => setPieChartMarginBottom(parseInt(e.target.value, 10))} style={{ width: '50px' }} />
+                <label htmlFor="pieMarginLeft" style={{ marginLeft: '10px' }}>Left: </label>
+                <input type="number" id="pieMarginLeft" value={pieChartMarginLeft} onChange={e => setPieChartMarginLeft(parseInt(e.target.value, 10))} style={{ width: '50px' }} />
+              </div>
+              <div style={{ marginTop: '10px' }}>
+                <label>
+                    <input type="checkbox" checked={pieChartEnableArcLinkLabels} onChange={e => setPieChartEnableArcLinkLabels(e.target.checked)} />
+                    Enable Arc Link Labels (Radial)
+                </label>
+                {pieChartEnableArcLinkLabels && (
+                  <>
+                    <label htmlFor="pieArcLinkLabel" style={{ marginLeft: '15px' }}>Label Content: </label>
+                    <select id="pieArcLinkLabel" value={pieChartArcLinkLabel} onChange={e => setPieChartArcLinkLabel(e.target.value)}>
+                      <option value="id">ID</option>
+                      <option value="value">Value</option>
+                      <option value="formattedValue">Formatted Value</option>
+                    </select>
+                    <label htmlFor="pieArcLinkLabelsSkipAngle" style={{ marginLeft: '15px' }}>Skip Angle (deg): </label>
+                    <input type="number" id="pieArcLinkLabelsSkipAngle" value={pieChartArcLinkLabelsSkipAngle} onChange={e => setPieChartArcLinkLabelsSkipAngle(parseInt(e.target.value, 10))} min="0" style={{ width: '60px' }} />
+                    <label htmlFor="pieArcLinkLabelsTextColor" style={{ marginLeft: '15px' }}>Text Color: </label>
+                    <input type="color" id="pieArcLinkLabelsTextColor" value={pieChartArcLinkLabelsTextColor} onChange={e => setPieChartArcLinkLabelsTextColor(e.target.value)} style={{ width: '60px' }} />
+                  </>
+                )}
+              </div>
+              <div style={{ marginTop: '10px' }}>
+                <label htmlFor="pieChartWidth">Width (e.g., 94%, 500px): </label>
+                <input type="text" id="pieChartWidth" value={pieChartWidth} onChange={(e) => setPieChartWidth(e.target.value)} style={{ width: '100px' }} />
+                <label htmlFor="pieChartHeight" style={{ marginLeft: '15px' }}>Height (px): </label>
+                <input type="number" id="pieChartHeight" value={pieChartHeight} onChange={(e) => setPieChartHeight(parseInt(e.target.value, 10))} min="100" style={{ width: '80px' }} />
+              </div>
+
+              {pieChartIdKey && getPieChartData().length > 0 && (
+                <div style={{ height: pieChartHeight, width: pieChartWidth, marginTop: '10px' }}>
+                  <ResponsivePie
+                    data={getPieChartData()}
+                    margin={{ top: pieChartMarginTop, right: pieChartMarginRight, bottom: pieChartMarginBottom, left: pieChartMarginLeft }}
+                    innerRadius={pieChartInnerRadius}
+                    outerRadius={pieChartOuterRadius}
+                    padAngle={pieChartPadAngle}
+                    cornerRadius={pieChartCornerRadius}
+                    startAngle={pieChartStartAngle}
+                    endAngle={pieChartEndAngle}
+                    sortByValue={pieChartSortByValue}
+                    colors={{ scheme: pieChartColorsScheme }}
+                    borderWidth={pieChartBorderWidth}
+                    borderColor={{ from: 'color', modifiers: [['darker', 0.2]] }}
+                    enableArcLabels={pieChartEnableArcLabels}
+                    arcLabel={pieChartArcLabel}
+                    arcLabelsSkipAngle={pieChartArcLabelSkipAngle}
+                    arcLabelsTextColor={{ from: 'color', modifiers: [['darker', 2]] }}
+                    enableArcLinkLabels={pieChartEnableArcLinkLabels}
+                    arcLinkLabel={pieChartArcLinkLabel} // Changed
+                    arcLinkLabelsSkipAngle={pieChartArcLinkLabelsSkipAngle} // Changed
+                    arcLinkLabelsTextColor={{ from: 'color', modifiers: [['darker', 2]] }} // Changed
+                     isInteractive={pieChartIsInteractive}
+                    role={pieChartRole}
                     legends={[{
                         anchor: 'bottom-right', direction: 'column', justify: false, translateX: 100, translateY: 0, itemsSpacing: 0, itemDirection: 'left-to-right', itemWidth: 80, itemHeight: 20, itemOpacity: 0.75, symbolSize: 12, symbolShape: 'circle', symbolBorderColor: 'rgba(0, 0, 0, .5)', effects: [{ on: 'hover', style: { itemBackground: 'rgba(0, 0, 0, .03)', itemOpacity: 1 } }]
                     }]}
@@ -576,4 +879,5 @@ const ChartConfigurator: React.FC<ChartConfiguratorProps> = ({
     </div>
   );
 };
+
 export default ChartConfigurator;

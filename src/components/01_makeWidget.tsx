@@ -1,13 +1,10 @@
 import React, { useState, useRef } from 'react';
 import { getProjects, Project, getTasksForProject, Task } from '../services/api'; // Task 관련 import 추가
-// import Handsontable from 'handsontable'; // 이 예제에서는 직접적인 Handsontable.Core 타입 사용 안 함
 import Handsontable from 'handsontable'; // Handsontable 코어 임포트
 import { DateCellType } from 'handsontable/cellTypes';
 import { HotTable, HotTableClass } from '@handsontable/react';
-import { ResponsiveLine, LineSeries } from '@nivo/line'; // Serie 대신 LineSeries 임포트
+import ChartConfigurator from './ChartConfigurator'; // ChartConfigurator 컴포넌트 임포트
 import { ColorSchemeId } from '@nivo/colors'; // ColorSchemeId 임포트
-import { ResponsivePie } from '@nivo/pie'; // Nivo Pie Chart 추가
-import { ResponsiveBar } from '@nivo/bar'; // Nivo Bar Chart
 import 'handsontable/dist/handsontable.full.css';
 
 // DateCellType 등록
@@ -83,7 +80,6 @@ const MakeWidget01: React.FC = () => {
   const [confirmedTaskColumnKeys, setConfirmedTaskColumnKeys] = useState(new Set<string>()); // "Select" 버튼으로 확정된 Task 테이블 컬럼 키
   const [lastFetchedProjectIdForTasks, setLastFetchedProjectIdForTasks] = useState<string | null>(null); // 마지막으로 Task를 가져온 프로젝트 ID
 
-
   // Chart size states - barChartWidth is now string to support "94%" or "500px"
   const [barChartWidth, setBarChartWidth] = useState<string>("94%");
   const [barChartHeight, setBarChartHeight] = useState<number>(400);
@@ -105,11 +101,41 @@ const MakeWidget01: React.FC = () => {
   const [barChartEnableLabel, setBarChartEnableLabel] = useState<boolean>(true);
   const [barChartLabelSkipWidth, setBarChartLabelSkipWidth] = useState<number>(12);
   const [barChartLabelSkipHeight, setBarChartLabelSkipHeight] = useState<number>(12);
+  // Pie Chart States
+  const [pieChartStartAngle, setPieChartStartAngle] = useState<number>(0);
+  const [pieChartEndAngle, setPieChartEndAngle] = useState<number>(360);
+  const [pieChartSortByValue, setPieChartSortByValue] = useState<boolean>(true);
+  const [pieChartIsInteractive, setPieChartIsInteractive] = useState<boolean>(true);
+  const [pieChartRole, setPieChartRole] = useState<string>('img');
+  const [pieChartMarginTop, setPieChartMarginTop] = useState<number>(40);
+  const [pieChartMarginRight, setPieChartMarginRight] = useState<number>(80);
+  const [pieChartMarginBottom, setPieChartMarginBottom] = useState<number>(80);
+  const [pieChartMarginLeft, setPieChartMarginLeft] = useState<number>(80);
+
+  const [pieChartEnableArcLinkLabels, setPieChartEnableArcLinkLabels] = useState<boolean>(false);
+  const [pieChartArcLinkLabel, setPieChartArcLinkLabel] = useState<string>('id');
+  const [pieChartArcLinkLabelsSkipAngle, setPieChartArcLinkLabelsSkipAngle] = useState<number>(10);
+  const [pieChartArcLinkLabelsTextColor, setPieChartArcLinkLabelsTextColor] = useState<string>('#333333');
+  const [pieChartIdKey, setPieChartIdKey] = useState<string>('');
+  const [pieChartValueKey, setPieChartValueKey] = useState<string>(''); // Optional: for summing values instead of counting
+  const [pieChartInnerRadius, setPieChartInnerRadius] = useState<number>(0); // 0 to 1
+  const [pieChartOuterRadius, setPieChartOuterRadius] = useState<number>(0.8); // 0 to 1
+  const [pieChartPadAngle, setPieChartPadAngle] = useState<number>(0); // degrees
+  const [pieChartCornerRadius, setPieChartCornerRadius] = useState<number>(0); // pixels
+  const [pieChartColorsScheme, setPieChartColorsScheme] = useState<ColorSchemeId>('nivo');
+  const [pieChartBorderWidth, setPieChartBorderWidth] = useState<number>(0);
+  const [pieChartBorderColor, setPieChartBorderColor] = useState<string>('#ffffff'); // or { from: 'color', modifiers: [['darker', 0.2]] }
+  const [pieChartEnableArcLabels, setPieChartEnableArcLabels] = useState<boolean>(true);
+  const [pieChartArcLabel, setPieChartArcLabel] = useState<string>('value'); // 'id', 'value', 'formattedValue'
+  const [pieChartArcLabelSkipAngle, setPieChartArcLabelSkipAngle] = useState<number>(10);
+  const [pieChartArcLabelTextColor, setPieChartArcLabelTextColor] = useState<string>('#333333'); 
+  const [pieChartWidth, setPieChartWidth] = useState<string>("94%");
+  const [pieChartHeight, setPieChartHeight] = useState<number>(400);
 
 
   type WizardStep = 'project' | 'data' | 'chart' | 'save';
   const [currentStep, setCurrentStep] = useState<WizardStep>('project');
-  const [chartType, setChartType] = useState<'bar' | 'line'>('bar');
+  const [chartType, setChartType] = useState<'bar' | 'line' | 'pie'>('bar');
 
   const handleButtonClick = (action: string) => {
 
@@ -222,12 +248,6 @@ const MakeWidget01: React.FC = () => {
   const [lineChartEnableGridX, setLineChartEnableGridX] = useState<boolean>(false); // 기본적으로 X 그리드는 숨김
   const [lineChartEnableGridY, setLineChartEnableGridY] = useState<boolean>(true);
 
-  const handleChartTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const newType = e.target.value as 'bar' | 'line';
-    setChartType(newType);
-    // Reset configurations when switching to avoid confusion
-  };
-
   // HotTable에서 행 선택 시 호출될 콜백 함수
   // hotInstance를 사용하지 않기 위해 filters와 columnSorting을 false로 설정했다고 가정합니다.
   // 이 경우, startRow (visual row index)는 projects 배열의 인덱스와 동일합니다.
@@ -298,7 +318,6 @@ const MakeWidget01: React.FC = () => {
     // 'key' column is not displayed but used internally
   ];
 
-
   const handleTaskHeaderCheckboxChange = (key: string, checked: boolean) => {
     setTaskHeaderSelection(prev => {
       const newSelection = new Set(prev);
@@ -357,42 +376,6 @@ const MakeWidget01: React.FC = () => {
     return (task as any)[key];
   };
 
-  // Function to prepare data for Line Chart
-  const getLineChartData = (): LineSeries[] => {
-    if (!lineChartXKey || lineChartYKeys.length === 0 || tasks.length === 0) {
-      return [];
-    }
-
-    // A simple sort for demonstration. A more robust solution would check the data type.
-    let processedTasks = [...tasks].sort((a, b) => {
-      const valA = getTaskValue(a, lineChartXKey);
-      const valB = getTaskValue(b, lineChartXKey);
-      if (valA < valB) return -1;
-      if (valA > valB) return 1;
-      return 0;
-    });
-
-    return lineChartYKeys.map(yKey => {
-      const seriesData = processedTasks
-        .map(task => {
-          const xValue = getTaskValue(task, lineChartXKey);
-          const yValue = getTaskValue(task, yKey);
-          // Ensure yValue is a number for the chart
-          const numericYValue = yValue !== null && yValue !== undefined && !isNaN(Number(yValue)) ? Number(yValue) : null;
-
-          if (xValue !== null && xValue !== undefined && numericYValue !== null) {
-            return { x: xValue, y: numericYValue };
-          }
-          return null;
-        })
-        .filter((d): d is { x: string | number; y: number } => d !== null);
-
-      return {
-        id: yKey,
-        data: seriesData,
-      };
-    });
-  };
   return (
     <div style={{ padding: '0px' }}>
       <h2>{pageTitle}</h2>
@@ -521,371 +504,154 @@ const MakeWidget01: React.FC = () => {
 
       {/* Nivo Chart 선택 및 표시 영역 */}
       {currentStep === 'chart' && (
-        <div style={{ marginTop: '30px' }}>
-          <h3>Chart Configuration</h3>
-          <p>Select a Nivo chart type and configure its settings using the confirmed columns: <strong>{Array.from(confirmedTaskColumnKeys).join(', ') || 'None'}</strong></p>
-          <p>Task data row count: {tasks.length}</p>
-          {confirmedTaskColumnKeys.size > 0 && tasks.length > 0 && (
-            <>
-              <div>
-                <label htmlFor="chartType">Chart Type:</label>
-                <select id="chartType" value={chartType} onChange={handleChartTypeChange}>
-                  <option value="bar">Bar Chart</option>
-                  <option value="line">Line Chart</option>
-                </select>
-              </div>
-
-              {chartType === 'bar' && (
-                <div style={{ marginTop: '20px', padding: '15px', border: '1px solid #ddd' }}>
-                  <h4>Bar Chart Configuration (<code>@nivo/bar</code>)</h4>
-                  <div>
-                    <label htmlFor="barIndexBy">Index By (X-axis): </label>
-                    <select id="barIndexBy" value={barChartIndexBy} onChange={(e) => setBarChartIndexBy(e.target.value)}>
-                      <option value="">-- Select X-axis --</option>
-                      {Array.from(confirmedTaskColumnKeys).map(key => <option key={key} value={key}>{key}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label htmlFor="barKeys">Keys (Y-axis values): </label>
-                    {/* For simplicity, allowing one Y key for now. Can be extended to multi-select */}
-                    <select id="barKeys" value={barChartKeys[0] || ''} onChange={(e) => setBarChartKeys(e.target.value ? [e.target.value] : [])}>
-                      <option value="">-- Select Y-axis --</option>
-                      {Array.from(confirmedTaskColumnKeys).map(key => <option key={key} value={key}>{key}</option>)}
-                    </select>
-                  </div>
-                  <div style={{ marginTop: '10px' }}>
-                    <label htmlFor="barChartWidth">Width (e.g., 94%, 500px): </label>
-                    <input type="text" id="barChartWidth" value={barChartWidth} onChange={(e) => setBarChartWidth(e.target.value)} style={{ width: '100px' }} />
-
-                    <label htmlFor="barChartHeight" style={{ marginLeft: '15px' }}>Height (px): </label>
-                    <input type="number" id="barChartHeight" value={barChartHeight} onChange={(e) => setBarChartHeight(parseInt(e.target.value, 10))} min="100" style={{ width: '80px' }} />
-                  </div>
-                  <div style={{ marginTop: '10px' }}>
-                    <label htmlFor="barLayout">Layout: </label>
-                    <select id="barLayout" value={barChartLayout} onChange={(e) => setBarChartLayout(e.target.value as 'vertical' | 'horizontal')}>
-                      <option value="vertical">Vertical</option>
-                      <option value="horizontal">Horizontal</option>
-                    </select>
-
-                    <label htmlFor="barGroupMode" style={{ marginLeft: '15px' }}>Group Mode: </label>
-                    <select id="barGroupMode" value={barChartGroupMode} onChange={(e) => setBarChartGroupMode(e.target.value as 'stacked' | 'grouped')}>
-                      <option value="stacked">Stacked</option>
-                      <option value="grouped">Grouped</option>
-                    </select>
-
-                    <label htmlFor="barReverse" style={{ marginLeft: '15px' }}>Reverse: </label>
-                    <input
-                      type="checkbox"
-                      id="barReverse"
-                      checked={barChartReverse}
-                      onChange={(e) => setBarChartReverse(e.target.checked)}
-                    />
-
-                    <label htmlFor="barPadding" style={{ marginLeft: '15px' }}>Padding: </label>
-                    <input type="number" id="barPadding" value={barChartPadding} onChange={(e) => setBarChartPadding(parseFloat(e.target.value))} min="0" max="1" step="0.05" style={{ width: '50px' }} />
-                  </div>
-                  <div style={{ marginTop: '10px' }}>
-                    <span style={{ marginRight: '10px', fontWeight: 'bold' }}>Axes:</span>
-                    <label htmlFor="barAxisTop" style={{ marginRight: '5px' }}>Top: </label>
-                    <input type="checkbox" id="barAxisTop" checked={barChartShowAxisTop} onChange={(e) => setBarChartShowAxisTop(e.target.checked)} />
-
-                    <label htmlFor="barAxisRight" style={{ marginLeft: '10px', marginRight: '5px' }}>Right: </label>
-                    <input type="checkbox" id="barAxisRight" checked={barChartShowAxisRight} onChange={(e) => setBarChartShowAxisRight(e.target.checked)} />
-
-                    <label htmlFor="barAxisBottom" style={{ marginLeft: '10px', marginRight: '5px' }}>Bottom: </label>
-                    <input type="checkbox" id="barAxisBottom" checked={barChartShowAxisBottom} onChange={(e) => setBarChartShowAxisBottom(e.target.checked)} />
-
-                    <label htmlFor="barAxisLeft" style={{ marginLeft: '10px', marginRight: '5px' }}>Left: </label>
-                    <input type="checkbox" id="barAxisLeft" checked={barChartShowAxisLeft} onChange={(e) => setBarChartShowAxisLeft(e.target.checked)} />
-                  </div>
-                  <div style={{ marginTop: '5px' }}>
-                    <span style={{ marginRight: '10px', fontWeight: 'bold' }}>Grids:</span>
-                    <label htmlFor="barEnableGridX" style={{ marginRight: '5px' }}>Enable X Grid: </label>
-                    <input
-                      type="checkbox"
-                      id="barEnableGridX"
-                      checked={barChartEnableGridX}
-                      onChange={(e) => setBarChartEnableGridX(e.target.checked)}
-                    />
-                    <label htmlFor="barEnableGridY" style={{ marginLeft: '10px', marginRight: '5px' }}>Enable Y Grid: </label>
-                    <input
-                      type="checkbox"
-                      id="barEnableGridY"
-                      checked={barChartEnableGridY}
-                      onChange={(e) => setBarChartEnableGridY(e.target.checked)}
-                    />
-                  </div>
-                  <div style={{ marginTop: '10px' }}>
-                    <span style={{ marginRight: '10px', fontWeight: 'bold' }}>Labels:</span>
-                    <label htmlFor="barEnableLabel" style={{ marginRight: '5px' }}>Enable Labels: </label>
-                    <input
-                      type="checkbox"
-                      id="barEnableLabel"
-                      checked={barChartEnableLabel}
-                      onChange={(e) => setBarChartEnableLabel(e.target.checked)}
-                    />
-                    <label htmlFor="barLabelSkipWidth" style={{ marginLeft: '10px', marginRight: '5px' }}>Skip Width: </label>
-                    <input type="number" id="barLabelSkipWidth" value={barChartLabelSkipWidth} onChange={(e) => setBarChartLabelSkipWidth(parseInt(e.target.value, 10))} style={{ width: '50px' }} />
-
-                    <label htmlFor="barLabelSkipHeight" style={{ marginLeft: '10px', marginRight: '5px' }}>Skip Height: </label>
-                    <input type="number" id="barLabelSkipHeight" value={barChartLabelSkipHeight} onChange={(e) => setBarChartLabelSkipHeight(parseInt(e.target.value, 10))} style={{ width: '50px' }} />
-                  </div>
-                  {barChartIndexBy && barChartKeys.length > 0 && (
-                    <div style={{ height: barChartHeight, width: barChartWidth, marginTop: '10px' }}> {/* 차트 높이 및 너비는 부모 div에 의해 제어됨 */}
-                      <ResponsiveBar
-                        data={tasks.map(task => {
-                          const item: { [key: string]: any } = {
-                            [barChartIndexBy]: getTaskValue(task, barChartIndexBy)
-                          };
-                          barChartKeys.forEach(yKey => {
-                            item[yKey] = getTaskValue(task, yKey);
-                          });
-                          return item;
-                        })}
-                        indexBy={barChartIndexBy}
-                        layout={barChartLayout}
-                        groupMode={barChartGroupMode}
-                        // reverse={barChartReverse} // 'reverse' prop is directly on ResponsiveBar
-                        keys={barChartKeys}
-                        margin={{ top: 50, right: 130, bottom: 50, left: 60 }} // 기본 마진으로 복원 또는 조정
-                        padding={barChartPadding}
-                        valueScale={{ type: 'linear' }}
-                        indexScale={{ type: 'band', round: true }}
-                        colors={{ scheme: 'nivo' }}
-                        // borderColor={{ from: 'color', modifiers: [['darker', 1.6]] }} // 단순화를 위해 제거 또는 주석 처리
-                        axisTop={barChartShowAxisTop ? { legend: 'Top Axis (optional)' } : null}
-                        axisRight={barChartShowAxisRight ? { legend: 'Right Axis (optional)' } : null}
-                        axisBottom={barChartShowAxisBottom ? {
-                          legend: barChartLayout === 'horizontal' ? barChartKeys.join(', ') : barChartIndexBy,
-                          legendPosition: 'middle',
-                          legendOffset: 32,
-                          // tickSize, tickPadding, tickRotation 등은 기본값 사용
-                        } : null}
-                        axisLeft={barChartShowAxisLeft ? {
-                          legend: barChartLayout === 'horizontal' ? barChartIndexBy : barChartKeys.join(', '),
-                          legendPosition: 'middle',
-                          legendOffset: -40,
-                          // tickSize, tickPadding, tickRotation 등은 기본값 사용
-                        } : null}
-                        enableGridX={barChartEnableGridX}
-                        enableGridY={barChartEnableGridY}
-                        enableLabel={barChartEnableLabel}
-                        labelSkipWidth={barChartLabelSkipWidth}
-                        labelSkipHeight={barChartLabelSkipHeight}
-                      // labelTextColor={{ from: 'color', modifiers: [['darker', 1.6]] }}
-
-                      // legends={[]} // 범례를 비활성화하거나 기본값 사용
-                      // animate={true} // 애니메이션 비활성화 또는 기본값 사용
-                      />
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {chartType === 'line' && (
-                <div style={{ marginTop: '20px', padding: '15px', border: '1px solid #ddd' }}>
-                  <h4>Line Chart Configuration (<code>@nivo/line</code>)</h4>
-                  <div>
-                    <label htmlFor="lineXKey">X-Axis (e.g., Name, StartDate): </label>
-                    <select id="lineXKey" value={lineChartXKey} onChange={(e) => setLineChartXKey(e.target.value)}>
-                      <option value="">-- Select X-axis --</option>
-                      {Array.from(confirmedTaskColumnKeys).map(key => <option key={key} value={key}>{key}</option>)}
-                    </select>
-                    <label htmlFor="lineXScaleType" style={{ marginLeft: '10px' }}>X Scale Type: </label>
-                    <select id="lineXScaleType" value={lineChartXScaleType} onChange={(e) => setLineChartXScaleType(e.target.value as 'point' | 'linear')}>
-                      <option value="point">Point (Categorical)</option>
-                      <option value="linear">Linear (Numerical/Date)</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label htmlFor="lineYKeys">Y-Axis (Lines): </label>
-                    {/* For simplicity, allowing one Y key for now. Can be extended to multi-select */}
-                    <select id="lineYKeys" value={lineChartYKeys[0] || ''} onChange={(e) => setLineChartYKeys(e.target.value ? [e.target.value] : [])}>
-                      <option value="">-- Select Y-axis --</option>
-                      {Array.from(confirmedTaskColumnKeys)
-                        .filter(key => key !== lineChartXKey) // X축과 동일한 키는 제외
-                        .map(key => <option key={key} value={key}>{key}</option>)}
-                    </select>
-                  </div>
-                  <div style={{ marginTop: '10px' }}>
-                    <label htmlFor="lineChartWidth">Width (e.g., 94%, 500px): </label>
-                    <input type="text" id="lineChartWidth" value={lineChartWidth} onChange={(e) => setlineChartWidth(e.target.value)} style={{ width: '100px' }} />
-
-                    <label htmlFor="lineChartHeight" style={{ marginLeft: '15px' }}>Height (px): </label>
-                    <input type="number" id="lineChartHeight" value={lineChartHeight} onChange={(e) => setlineChartHeight(parseInt(e.target.value, 10))} min="100" style={{ width: '80px' }} />
-                  </div>
-
-                  <div style={{ marginTop: '10px' }}>
-                    <label htmlFor="lineCurve">Curve: </label>
-                    <select id="lineCurve" value={lineChartCurve} onChange={(e) => setLineChartCurve(e.target.value as 'linear' | 'cardinal' | 'step' | 'monotoneX')}>
-                      <option value="linear">Linear</option>
-                      <option value="monotoneX">Monotone X</option>
-                      <option value="cardinal">Cardinal</option>
-                      <option value="step">Step</option>
-                    </select>
-                    <label style={{ marginLeft: '15px' }}>
-                      <input type="checkbox" checked={lineChartEnablePoints} onChange={e => setLineChartEnablePoints(e.target.checked)} />
-                      Enable Points
-                    </label>
-                    <label style={{ marginLeft: '15px' }}>
-                      <input type="checkbox" checked={lineChartEnableArea} onChange={e => setLineChartEnableArea(e.target.checked)} />
-                      Enable Area
-                    </label>
-                    <label style={{ marginLeft: '15px' }}>
-                      Line Width:
-                      <input type="number" value={lineChartLineWidth} onChange={e => setLineChartLineWidth(parseInt(e.target.value, 10))} min="0" style={{ width: '50px', marginLeft: '5px' }} />
-                    </label>
-                  </div>
-                  <div style={{ marginTop: '10px' }}>
-                    <label>Point Color:</label>
-                    <input
-                      type="checkbox"
-                      checked={lineChartUseThemeBackgroundForPointColor}
-                      onChange={e => setLineChartUseThemeBackgroundForPointColor(e.target.checked)}
-                      style={{ marginLeft: '5px' }}
-                    /> Use Theme Background
-                    {!lineChartUseThemeBackgroundForPointColor && (
-                      <input
-                        type="color"
-                        value={lineChartCustomPointColor}
-                        onChange={e => setLineChartCustomPointColor(e.target.value)}
-                        style={{ marginLeft: '10px' }}
-                      />
-                    )}
-                    <label style={{ marginLeft: '15px' }}>Point Border Width:</label>
-                    <input type="number" value={lineChartPointBorderWidth} onChange={e => setLineChartPointBorderWidth(parseInt(e.target.value, 10))} min="0" style={{ width: '50px', marginLeft: '5px' }} />
-                  </div>
-                  <div style={{ marginTop: '10px' }}>
-                    <label htmlFor="linePointLabel">Point Label:</label>
-                    <select id="linePointLabel" value={lineChartPointLabel} onChange={e => setLineChartPointLabel(e.target.value)}>
-                      <option value="">None</option>
-                      <option value="x">X Value</option>
-                      <option value="y">Y Value</option>
-                    </select>
-                    {lineChartPointLabel && (
-                      <label style={{ marginLeft: '15px' }}>
-                        Label Y Offset:
-                        <input type="number" value={lineChartPointLabelYOffset} onChange={e => setLineChartPointLabelYOffset(parseInt(e.target.value, 10))} style={{ width: '50px', marginLeft: '5px' }} />
-                      </label>
-                    )}
-                  </div>
-                  <div style={{ marginTop: '10px' }}>
-                    <label>Area Opacity:</label>
-                    <input type="number" value={lineChartAreaOpacity} onChange={e => setLineChartAreaOpacity(parseFloat(e.target.value))} min="0" max="1" step="0.05" style={{ width: '50px', marginLeft: '5px' }} />
-                    <label style={{ marginLeft: '15px' }}>
-                      <input type="checkbox" checked={lineChartUseMesh} onChange={e => setLineChartUseMesh(e.target.checked)} />
-                      Use Mesh (for Tooltip)
-                    </label>
-                  </div>
-                  <div style={{ marginTop: '10px' }}>
-                    <span style={{ marginRight: '10px', fontWeight: 'bold' }}>Margins (px):</span>
-                    <label htmlFor="lineMarginTop">Top: </label>
-                    <input type="number" id="lineMarginTop" value={lineChartMarginTop} onChange={e => setLineChartMarginTop(parseInt(e.target.value, 10))} style={{ width: '50px' }} />
-                    <label htmlFor="lineMarginRight" style={{ marginLeft: '10px' }}>Right: </label>
-                    <input type="number" id="lineMarginRight" value={lineChartMarginRight} onChange={e => setLineChartMarginRight(parseInt(e.target.value, 10))} style={{ width: '50px' }} />
-                    <label htmlFor="lineMarginBottom" style={{ marginLeft: '10px' }}>Bottom: </label>
-                    <input type="number" id="lineMarginBottom" value={lineChartMarginBottom} onChange={e => setLineChartMarginBottom(parseInt(e.target.value, 10))} style={{ width: '50px' }} />
-                    <label htmlFor="lineMarginLeft" style={{ marginLeft: '10px' }}>Left: </label>
-                    <input type="number" id="lineMarginLeft" value={lineChartMarginLeft} onChange={e => setLineChartMarginLeft(parseInt(e.target.value, 10))} style={{ width: '50px' }} />
-                  </div>
-                  <div style={{ marginTop: '5px' }}>
-                    <span style={{ marginRight: '10px', fontWeight: 'bold' }}>Grids:</span>
-                    <label htmlFor="lineEnableGridX" style={{ marginRight: '5px' }}>Enable X Grid: </label>
-                    <input
-                      type="checkbox"
-                      id="lineEnableGridX"
-                      checked={lineChartEnableGridX}
-                      onChange={(e) => setLineChartEnableGridX(e.target.checked)}
-                    />
-                    <label htmlFor="lineEnableGridY" style={{ marginLeft: '10px', marginRight: '5px' }}>Enable Y Grid: </label>
-                    <input
-                      type="checkbox"
-                      id="lineEnableGridY"
-                      checked={lineChartEnableGridY}
-                      onChange={(e) => setLineChartEnableGridY(e.target.checked)}
-                    />
-                  </div>
-                  <div style={{ marginTop: '10px' }}>
-                    <label htmlFor="lineColorsScheme">Color Scheme: </label>
-                    <select id="lineColorsScheme" value={lineChartColorsScheme} onChange={e => setLineChartColorsScheme(e.target.value as ColorSchemeId)}>
-                      <option value="nivo">nivo</option>
-                      <option value="category10">category10</option>
-                      <option value="accent">accent</option>
-                      <option value="dark2">dark2</option>
-                      <option value="paired">paired</option>
-                      <option value="pastel1">pastel1</option>
-                      <option value="pastel2">pastel2</option>
-                      <option value="set1">set1</option>
-                      <option value="set2">set2</option>
-                      <option value="set3">set3</option>
-                      <option value="brown_blueGreen">brown_blueGreen</option>
-                      <option value="purpleRed_green">purpleRed_green</option>
-                      <option value="pink_yellowGreen">pink_yellowGreen</option>
-                      <option value="purple_orange">purple_orange</option>
-                      <option value="red_blue">red_blue</option>
-                      <option value="red_grey">red_grey</option>
-                      <option value="red_yellow_blue">red_yellow_blue</option>
-                      <option value="red_yellow_green">red_yellow_green</option>
-                      <option value="spectral">spectral</option>
-                    </select>
-                  </div>
-
-                  {lineChartXKey && lineChartYKeys.length > 0 && (
-                    <div style={{ height: lineChartHeight, width: lineChartWidth, marginTop: '10px' }}>
-                      <ResponsiveLine
-                        data={getLineChartData()}
-                        margin={{ top: lineChartMarginTop, right: lineChartMarginRight, bottom: lineChartMarginBottom, left: lineChartMarginLeft }}
-                        xScale={{ type: lineChartXScaleType, min: 'auto', max: 'auto' }}
-                        yScale={{
-                          type: 'linear',
-                          min: 'auto',
-                          max: 'auto',
-                          stacked: false, // Line charts are typically not stacked by default
-                          reverse: false
-                        }}
-                        yFormat=" >-.2f"
-                        axisTop={null}
-                        axisRight={null}
-                        axisBottom={{
-                          tickSize: 5,
-                          tickPadding: 5,
-                          tickRotation: 0,
-                          legend: lineChartXKey,
-                          legendOffset: 36,
-                          legendPosition: 'middle'
-                        }}
-                        axisLeft={{
-                          tickSize: 5,
-                          tickPadding: 5,
-                          tickRotation: 0,
-                          legend: lineChartYKeys.join(', '),
-                          legendOffset: -40,
-                          legendPosition: 'middle'
-                        }}
-                        enableGridX={lineChartEnableGridX}
-                        enableGridY={lineChartEnableGridY}
-                        colors={{ scheme: lineChartColorsScheme }}
-                        lineWidth={lineChartLineWidth}
-                        enablePoints={lineChartEnablePoints}
-                        pointSize={lineChartPointSize}
-                        pointColor={lineChartUseThemeBackgroundForPointColor ? { theme: 'background' } : lineChartCustomPointColor}
-                        pointBorderWidth={lineChartPointBorderWidth}
-                        pointBorderColor={{ from: 'serieColor' }}
-                        pointLabelYOffset={-12}
-                        enableArea={lineChartEnableArea}
-                        areaOpacity={lineChartAreaOpacity}
-                        useMesh={lineChartUseMesh}
-                        legends={[{
-                          anchor: 'bottom-right', direction: 'column', justify: false, translateX: 100, translateY: 0, itemsSpacing: 0, itemDirection: 'left-to-right', itemWidth: 80, itemHeight: 20, itemOpacity: 0.75, symbolSize: 12, symbolShape: 'circle', symbolBorderColor: 'rgba(0, 0, 0, .5)', effects: [{ on: 'hover', style: { itemBackground: 'rgba(0, 0, 0, .03)', itemOpacity: 1 } }]
-                        }]}
-                      />
-                    </div>
-                  )}
-                </div>
-              )}
-            </>
-          )}
-        </div>
+        <ChartConfigurator
+          tasks={tasks}
+          confirmedTaskColumnKeys={confirmedTaskColumnKeys}
+          getTaskValue={getTaskValue}
+          chartType={chartType}
+          setChartType={setChartType}
+          // Bar Chart Props
+          barChartIndexBy={barChartIndexBy}
+          setBarChartIndexBy={setBarChartIndexBy}
+          barChartKeys={barChartKeys}
+          setBarChartKeys={setBarChartKeys}
+          barChartLayout={barChartLayout}
+          setBarChartLayout={setBarChartLayout}
+          barChartGroupMode={barChartGroupMode}
+          setBarChartGroupMode={setBarChartGroupMode}
+          barChartReverse={barChartReverse}
+          setBarChartReverse={setBarChartReverse}
+          barChartPadding={barChartPadding}
+          setBarChartPadding={setBarChartPadding}
+          barChartShowAxisTop={barChartShowAxisTop}
+          setBarChartShowAxisTop={setBarChartShowAxisTop}
+          barChartShowAxisRight={barChartShowAxisRight}
+          setBarChartShowAxisRight={setBarChartShowAxisRight}
+          barChartShowAxisBottom={barChartShowAxisBottom}
+          setBarChartShowAxisBottom={setBarChartShowAxisBottom}
+          barChartShowAxisLeft={barChartShowAxisLeft}
+          setBarChartShowAxisLeft={setBarChartShowAxisLeft}
+          barChartEnableGridX={barChartEnableGridX}
+          setBarChartEnableGridX={setBarChartEnableGridX}
+          barChartEnableGridY={barChartEnableGridY}
+          setBarChartEnableGridY={setBarChartEnableGridY}
+          barChartEnableLabel={barChartEnableLabel}
+          setBarChartEnableLabel={setBarChartEnableLabel}
+          barChartLabelSkipWidth={barChartLabelSkipWidth}
+          setBarChartLabelSkipWidth={setBarChartLabelSkipWidth}
+          barChartLabelSkipHeight={barChartLabelSkipHeight}
+          setBarChartLabelSkipHeight={setBarChartLabelSkipHeight}
+          barChartWidth={barChartWidth}
+          setBarChartWidth={setBarChartWidth}
+          barChartHeight={barChartHeight}
+          setBarChartHeight={setBarChartHeight}
+          // Line Chart Props
+          lineChartXKey={lineChartXKey}
+          setLineChartXKey={setLineChartXKey}
+          lineChartYKeys={lineChartYKeys}
+          setLineChartYKeys={setLineChartYKeys}
+          lineChartCurve={lineChartCurve}
+          setLineChartCurve={setLineChartCurve}
+          lineChartEnablePoints={lineChartEnablePoints}
+          setLineChartEnablePoints={setLineChartEnablePoints}
+          lineChartPointSize={lineChartPointSize}
+          setLineChartPointSize={setLineChartPointSize}
+          lineChartEnableArea={lineChartEnableArea}
+          setLineChartEnableArea={setLineChartEnableArea}
+          lineChartLineWidth={lineChartLineWidth}
+          setLineChartLineWidth={setLineChartLineWidth}
+          lineChartPointBorderWidth={lineChartPointBorderWidth}
+          setLineChartPointBorderWidth={setLineChartPointBorderWidth}
+          lineChartPointLabel={lineChartPointLabel}
+          setLineChartPointLabel={setLineChartPointLabel}
+          lineChartPointLabelYOffset={lineChartPointLabelYOffset}
+          setLineChartPointLabelYOffset={setLineChartPointLabelYOffset}
+          lineChartUseThemeBackgroundForPointColor={lineChartUseThemeBackgroundForPointColor}
+          setLineChartUseThemeBackgroundForPointColor={setLineChartUseThemeBackgroundForPointColor}
+          lineChartCustomPointColor={lineChartCustomPointColor}
+          setLineChartCustomPointColor={setLineChartCustomPointColor}
+          lineChartAreaOpacity={lineChartAreaOpacity}
+          setLineChartAreaOpacity={setLineChartAreaOpacity}
+          lineChartUseMesh={lineChartUseMesh}
+          setLineChartUseMesh={setLineChartUseMesh}
+          lineChartXScaleType={lineChartXScaleType}
+          setLineChartXScaleType={setLineChartXScaleType}
+          lineChartMarginTop={lineChartMarginTop}
+          setLineChartMarginTop={setLineChartMarginTop}
+          lineChartMarginRight={lineChartMarginRight}
+          setLineChartMarginRight={setLineChartMarginRight}
+          lineChartMarginBottom={lineChartMarginBottom}
+          setLineChartMarginBottom={setLineChartMarginBottom}
+          lineChartMarginLeft={lineChartMarginLeft}
+          setLineChartMarginLeft={setLineChartMarginLeft}
+          lineChartColorsScheme={lineChartColorsScheme}
+          setLineChartColorsScheme={setLineChartColorsScheme}
+          lineChartWidth={lineChartWidth}
+          setLineChartWidth={setlineChartWidth}
+          lineChartHeight={lineChartHeight}
+          setLineChartHeight={setlineChartHeight}
+          lineChartEnableGridX={lineChartEnableGridX}
+          setLineChartEnableGridX={setLineChartEnableGridX}
+          lineChartEnableGridY={lineChartEnableGridY}
+          setLineChartEnableGridY={setLineChartEnableGridY}
+          // Pie Chart Props
+          pieChartIdKey={pieChartIdKey}
+          setPieChartIdKey={setPieChartIdKey}
+          pieChartValueKey={pieChartValueKey}
+          setPieChartValueKey={setPieChartValueKey}
+          pieChartInnerRadius={pieChartInnerRadius}
+          setPieChartInnerRadius={setPieChartInnerRadius}
+          pieChartOuterRadius={pieChartOuterRadius}
+          setPieChartOuterRadius={setPieChartOuterRadius}
+          pieChartPadAngle={pieChartPadAngle}
+          setPieChartPadAngle={setPieChartPadAngle}
+          pieChartCornerRadius={pieChartCornerRadius}
+          setPieChartCornerRadius={setPieChartCornerRadius}
+          pieChartColorsScheme={pieChartColorsScheme}
+          setPieChartColorsScheme={setPieChartColorsScheme}
+          pieChartBorderWidth={pieChartBorderWidth}
+          setPieChartBorderWidth={setPieChartBorderWidth}
+          pieChartBorderColor={pieChartBorderColor}
+          setPieChartBorderColor={setPieChartBorderColor}
+          pieChartEnableArcLabels={pieChartEnableArcLabels}
+          setPieChartEnableArcLabels={setPieChartEnableArcLabels}
+          pieChartArcLabel={pieChartArcLabel}
+          setPieChartArcLabel={setPieChartArcLabel}
+          pieChartArcLabelSkipAngle={pieChartArcLabelSkipAngle}
+          setPieChartArcLabelSkipAngle={setPieChartArcLabelSkipAngle}
+          pieChartArcLabelTextColor={pieChartArcLabelTextColor}
+          setPieChartArcLabelTextColor={setPieChartArcLabelTextColor}
+          pieChartStartAngle={pieChartStartAngle}
+          setPieChartStartAngle={setPieChartStartAngle}
+          pieChartEndAngle={pieChartEndAngle}
+          setPieChartEndAngle={setPieChartEndAngle}
+          pieChartSortByValue={pieChartSortByValue}
+          setPieChartSortByValue={setPieChartSortByValue}
+          pieChartIsInteractive={pieChartIsInteractive}
+          setPieChartIsInteractive={setPieChartIsInteractive}
+          pieChartRole={pieChartRole}
+          setPieChartRole={setPieChartRole}
+          pieChartMarginTop={pieChartMarginTop}
+          setPieChartMarginTop={setPieChartMarginTop}
+          pieChartMarginRight={pieChartMarginRight}
+          setPieChartMarginRight={setPieChartMarginRight}
+          pieChartMarginBottom={pieChartMarginBottom}
+          setPieChartMarginBottom={setPieChartMarginBottom}
+          pieChartMarginLeft={pieChartMarginLeft}
+          setPieChartMarginLeft={setPieChartMarginLeft}
+          pieChartEnableArcLinkLabels={pieChartEnableArcLinkLabels}
+          setPieChartEnableArcLinkLabels={setPieChartEnableArcLinkLabels}
+          pieChartArcLinkLabel={pieChartArcLinkLabel}
+          setPieChartArcLinkLabel={setPieChartArcLinkLabel}
+          pieChartArcLinkLabelsSkipAngle={pieChartArcLinkLabelsSkipAngle}
+          setPieChartArcLinkLabelsSkipAngle={setPieChartArcLinkLabelsSkipAngle}
+          pieChartArcLinkLabelsTextColor={pieChartArcLinkLabelsTextColor}
+          setPieChartArcLinkLabelsTextColor={setPieChartArcLinkLabelsTextColor}
+          pieChartWidth={pieChartWidth}
+          setPieChartWidth={setPieChartWidth}
+          pieChartHeight={pieChartHeight}
+          setPieChartHeight={setPieChartHeight}
+        />
       )}
     </div>
   );
