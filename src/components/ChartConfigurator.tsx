@@ -45,8 +45,8 @@ interface ChartConfiguratorProps {
   setBarChartLabelSkipWidth: React.Dispatch<React.SetStateAction<number>>;
   barChartLabelSkipHeight: number;
   setBarChartLabelSkipHeight: React.Dispatch<React.SetStateAction<number>>;
-  barChartWidth: string;
-  setBarChartWidth: React.Dispatch<React.SetStateAction<string>>;
+  barChartWidth: number;
+  setBarChartWidth: React.Dispatch<React.SetStateAction<number>>;
   barChartHeight: number;
   setBarChartHeight: React.Dispatch<React.SetStateAction<number>>;
 
@@ -95,8 +95,8 @@ interface ChartConfiguratorProps {
   setLineChartMarginLeft: React.Dispatch<React.SetStateAction<number>>;
   lineChartColorsScheme: ColorSchemeId;
   setLineChartColorsScheme: React.Dispatch<React.SetStateAction<ColorSchemeId>>;
-  lineChartWidth: string;
-  setLineChartWidth: React.Dispatch<React.SetStateAction<string>>;
+  lineChartWidth: number;
+  setLineChartWidth: React.Dispatch<React.SetStateAction<number>>;
   lineChartHeight: number;
   setLineChartHeight: React.Dispatch<React.SetStateAction<number>>;
 
@@ -129,8 +129,6 @@ interface ChartConfiguratorProps {
   setPieChartValueKey: React.Dispatch<React.SetStateAction<string>>;
   pieChartInnerRadius: number;
   setPieChartInnerRadius: React.Dispatch<React.SetStateAction<number>>;
-  pieChartOuterRadius: number;
-  setPieChartOuterRadius: React.Dispatch<React.SetStateAction<number>>;
   pieChartPadAngle: number;
   setPieChartPadAngle: React.Dispatch<React.SetStateAction<number>>;
   pieChartCornerRadius: number;
@@ -149,8 +147,8 @@ interface ChartConfiguratorProps {
   setPieChartArcLabelSkipAngle: React.Dispatch<React.SetStateAction<number>>;
   pieChartArcLabelTextColor: string;
   setPieChartArcLabelTextColor: React.Dispatch<React.SetStateAction<string>>;
-  pieChartWidth: string;
-  setPieChartWidth: React.Dispatch<React.SetStateAction<string>>;
+  pieChartWidth: number;
+  setPieChartWidth: React.Dispatch<React.SetStateAction<number>>;
   pieChartHeight: number;
   setPieChartHeight: React.Dispatch<React.SetStateAction<number>>;
 }
@@ -263,8 +261,6 @@ const ChartConfigurator: React.FC<ChartConfiguratorProps> = ({
   setPieChartValueKey,
   pieChartInnerRadius,
   setPieChartInnerRadius,
-  pieChartOuterRadius,
-  setPieChartOuterRadius,
   pieChartPadAngle,
   setPieChartPadAngle,
   pieChartCornerRadius,
@@ -397,8 +393,8 @@ const ChartConfigurator: React.FC<ChartConfiguratorProps> = ({
                 </select>
               </div>
               <div style={{ marginTop: '10px' }}>
-                <label htmlFor="barChartWidth">Width (e.g., 94%, 500px): </label>
-                <input type="text" id="barChartWidth" value={barChartWidth} onChange={(e) => setBarChartWidth(e.target.value)} style={{width: '100px'}}/>
+                <label htmlFor="barChartWidth">Width (px): </label>
+                <input type="number" id="barChartWidth" value={barChartWidth} onChange={(e) => setBarChartWidth(e.target.value === '' ? 0 : Number(e.target.value))} style={{width: 400}}/>
                 <label htmlFor="barChartHeight" style={{ marginLeft: '15px' }}>Height (px): </label>
                 <input type="number" id="barChartHeight" value={barChartHeight} onChange={(e) => setBarChartHeight(parseInt(e.target.value, 10))} min="100" style={{width: '80px'}}/>
               </div>
@@ -534,8 +530,8 @@ const ChartConfigurator: React.FC<ChartConfiguratorProps> = ({
                 </select>
               </div>
               <div style={{ marginTop: '10px' }}>
-                <label htmlFor="lineChartWidth">Width (e.g., 94%, 500px): </label>
-                <input type="text" id="lineChartWidth" value={lineChartWidth} onChange={(e) => setLineChartWidth(e.target.value)} style={{width: '100px'}}/>
+                <label htmlFor="lineChartWidth">Width (px): </label>
+                <input type="number" id="lineChartWidth" value={lineChartWidth} onChange={(e) => setLineChartWidth(e.target.value === '' ? 0 : Number(e.target.value))} style={{width: 400}}/>
                 <label htmlFor="lineChartHeight" style={{ marginLeft: '15px' }}>Height (px): </label>
                 <input type="number" id="lineChartHeight" value={lineChartHeight} onChange={(e) => setLineChartHeight(parseInt(e.target.value, 10))} min="100" style={{width: '80px'}}/>
               </div>
@@ -727,10 +723,7 @@ const ChartConfigurator: React.FC<ChartConfiguratorProps> = ({
               </div>
               <div style={{ marginTop: '10px' }}>
                 <label htmlFor="pieInnerRadius">Inner Radius (%): </label>
-                <input type="number" id="pieInnerRadius" value={pieChartInnerRadius * 100} onChange={(e) => setPieChartInnerRadius(parseInt(e.target.value, 10) / 100)} min="0" max="100" style={{ width: '60px' }} />
-                <label htmlFor="pieOuterRadius" style={{ marginLeft: '15px' }}>Outer Radius (%): </label>
-                <input type="number" id="pieOuterRadius" value={pieChartOuterRadius * 100} onChange={(e) => setPieChartOuterRadius(parseInt(e.target.value, 10) / 100)} min="0" max="100" style={{ width: '60px' }} />
-                <label htmlFor="piePadAngle" style={{ marginLeft: '15px' }}>Pad Angle (deg): </label>
+                <input type="number" id="pieInnerRadius" value={pieChartInnerRadius * 100} onChange={(e) => setPieChartInnerRadius(Number(e.target.value) / 100)} min="0" max="100" style={{ width: '60px' }} />                <label htmlFor="piePadAngle" style={{ marginLeft: '15px' }}>Pad Angle (deg): </label>
                 <input type="number" id="piePadAngle" value={pieChartPadAngle} onChange={(e) => setPieChartPadAngle(parseInt(e.target.value, 10))} min="0" max="45" style={{ width: '60px' }} />
                 <label htmlFor="pieCornerRadius" style={{ marginLeft: '15px' }}>Corner Radius (px): </label>
                 <input type="number" id="pieCornerRadius" value={pieChartCornerRadius} onChange={(e) => setPieChartCornerRadius(parseInt(e.target.value, 10))} min="0" style={{ width: '60px' }} />
@@ -835,8 +828,8 @@ const ChartConfigurator: React.FC<ChartConfiguratorProps> = ({
                 )}
               </div>
               <div style={{ marginTop: '10px' }}>
-                <label htmlFor="pieChartWidth">Width (e.g., 94%, 500px): </label>
-                <input type="text" id="pieChartWidth" value={pieChartWidth} onChange={(e) => setPieChartWidth(e.target.value)} style={{ width: '100px' }} />
+                <label htmlFor="pieChartWidth">Width (px): </label>
+                <input type="number" id="pieChartWidth" value={pieChartWidth} onChange={(e) => setPieChartWidth(e.target.value === '' ? 0 : Number(e.target.value))} style={{ width: 400 }} />
                 <label htmlFor="pieChartHeight" style={{ marginLeft: '15px' }}>Height (px): </label>
                 <input type="number" id="pieChartHeight" value={pieChartHeight} onChange={(e) => setPieChartHeight(parseInt(e.target.value, 10))} min="100" style={{ width: '80px' }} />
               </div>
@@ -847,7 +840,6 @@ const ChartConfigurator: React.FC<ChartConfiguratorProps> = ({
                     data={getPieChartData()}
                     margin={{ top: pieChartMarginTop, right: pieChartMarginRight, bottom: pieChartMarginBottom, left: pieChartMarginLeft }}
                     innerRadius={pieChartInnerRadius}
-                    outerRadius={pieChartOuterRadius}
                     padAngle={pieChartPadAngle}
                     cornerRadius={pieChartCornerRadius}
                     startAngle={pieChartStartAngle}

@@ -41,7 +41,7 @@ interface SavedWidgetConfig {
   barChartEnableLabel: boolean;
   barChartLabelSkipWidth: number;
   barChartLabelSkipHeight: number;
-  barChartWidth: string;
+  barChartWidth: number;
   barChartHeight: number;
 
   // Line Chart Configs
@@ -67,7 +67,7 @@ interface SavedWidgetConfig {
   lineChartMarginBottom: number;
   lineChartMarginLeft: number;
   lineChartColorsScheme: ColorSchemeId;
-  lineChartWidth: string;
+  lineChartWidth: number;
   lineChartHeight: number;
 
   // Pie Chart Configs
@@ -87,7 +87,6 @@ interface SavedWidgetConfig {
   pieChartIdKey: string;
   pieChartValueKey: string;
   pieChartInnerRadius: number;
-  pieChartOuterRadius: number;
   pieChartPadAngle: number;
   pieChartCornerRadius: number;
   pieChartColorsScheme: ColorSchemeId;
@@ -97,7 +96,7 @@ interface SavedWidgetConfig {
   pieChartArcLabel: string;
   pieChartArcLabelSkipAngle: number;
   pieChartArcLabelTextColor: string;
-  pieChartWidth: string;
+  pieChartWidth: number;
   pieChartHeight: number;
 }
 
@@ -165,7 +164,7 @@ const MakeWidget01: React.FC = () => {
   const [lastFetchedProjectIdForTasks, setLastFetchedProjectIdForTasks] = useState<string | null>(null); // 마지막으로 Task를 가져온 프로젝트 ID
 
   // Chart size states - barChartWidth is now string to support "94%" or "500px"
-  const [barChartWidth, setBarChartWidth] = useState<string>("94%");
+  const [barChartWidth, setBarChartWidth] = useState<number>(500);
   const [barChartHeight, setBarChartHeight] = useState<number>(400);
   // Chart configuration states
   const [barChartIndexBy, setBarChartIndexBy] = useState<string>('');
@@ -203,7 +202,6 @@ const MakeWidget01: React.FC = () => {
   const [pieChartIdKey, setPieChartIdKey] = useState<string>('');
   const [pieChartValueKey, setPieChartValueKey] = useState<string>(''); // Optional: for summing values instead of counting
   const [pieChartInnerRadius, setPieChartInnerRadius] = useState<number>(0); // 0 to 1
-  const [pieChartOuterRadius, setPieChartOuterRadius] = useState<number>(0.8); // 0 to 1
   const [pieChartPadAngle, setPieChartPadAngle] = useState<number>(0); // degrees
   const [pieChartCornerRadius, setPieChartCornerRadius] = useState<number>(0); // pixels
   const [pieChartColorsScheme, setPieChartColorsScheme] = useState<ColorSchemeId>('nivo');
@@ -213,7 +211,7 @@ const MakeWidget01: React.FC = () => {
   const [pieChartArcLabel, setPieChartArcLabel] = useState<string>('value'); // 'id', 'value', 'formattedValue'
   const [pieChartArcLabelSkipAngle, setPieChartArcLabelSkipAngle] = useState<number>(10);
   const [pieChartArcLabelTextColor, setPieChartArcLabelTextColor] = useState<string>('#333333'); 
-  const [pieChartWidth, setPieChartWidth] = useState<string>("94%");
+  const [pieChartWidth, setPieChartWidth] = useState<number>(500);
   const [pieChartHeight, setPieChartHeight] = useState<number>(400);
 
 
@@ -308,7 +306,7 @@ const MakeWidget01: React.FC = () => {
   };
 
   // Line Chart States
-  const [lineChartWidth, setlineChartWidth] = useState<string>("94%");
+  const [lineChartWidth, setlineChartWidth] = useState<number>(500);
   const [lineChartHeight, setlineChartHeight] = useState<number>(400);
   const [lineChartXKey, setLineChartXKey] = useState<string>('');
   const [lineChartYKeys, setLineChartYKeys] = useState<string[]>([]);
@@ -522,7 +520,6 @@ const MakeWidget01: React.FC = () => {
         pieChartIdKey,
         pieChartValueKey,
         pieChartInnerRadius,
-        pieChartOuterRadius,
         pieChartPadAngle,
         pieChartCornerRadius,
         pieChartColorsScheme,
@@ -822,8 +819,6 @@ const MakeWidget01: React.FC = () => {
           setPieChartValueKey={setPieChartValueKey}
           pieChartInnerRadius={pieChartInnerRadius}
           setPieChartInnerRadius={setPieChartInnerRadius}
-          pieChartOuterRadius={pieChartOuterRadius}
-          setPieChartOuterRadius={setPieChartOuterRadius}
           pieChartPadAngle={pieChartPadAngle}
           setPieChartPadAngle={setPieChartPadAngle}
           pieChartCornerRadius={pieChartCornerRadius}

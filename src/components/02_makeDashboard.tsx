@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { DndContext, pointerWithin, rectIntersection, PointerSensor, useSensor, useSensors, DragOverlay } from '@dnd-kit/core';
-import { useDraggable, useDroppable } from '@dnd-kit/core'; // rectIntersection 추가
+import { DndContext, pointerWithin, PointerSensor, useSensor, useSensors, DragOverlay, rectIntersection, MeasuringStrategy, CollisionDetection } from '@dnd-kit/core';
+import { useDraggable, useDroppable } from '@dnd-kit/core';
 import { Task, getTasksForProject } from '../services/api'; // Task 및 getTasksForProject import
 import ChartConfigurator from './ChartConfigurator'; // ChartConfigurator import
 import { CSS } from '@dnd-kit/utilities';
@@ -30,7 +30,7 @@ interface SavedWidgetConfig {
     barChartEnableLabel: boolean;
     barChartLabelSkipWidth: number;
     barChartLabelSkipHeight: number;
-    barChartWidth: string;
+    barChartWidth: number;
     barChartHeight: number;
 
     // Line Chart Configs (from ChartConfiguratorProps)
@@ -55,8 +55,8 @@ interface SavedWidgetConfig {
     lineChartMarginRight: number;
     lineChartMarginBottom: number;
     lineChartMarginLeft: number;
-    lineChartColorsScheme: string; // ColorSchemeId
-    lineChartWidth: string;
+    lineChartColorsScheme: ColorSchemeId; // ColorSchemeId
+    lineChartWidth: number;
     lineChartHeight: number;
 
     // Pie Chart Configs (from ChartConfiguratorProps)
@@ -76,17 +76,16 @@ interface SavedWidgetConfig {
     pieChartIdKey: string;
     pieChartValueKey: string;
     pieChartInnerRadius: number;
-    pieChartOuterRadius: number;
     pieChartPadAngle: number;
     pieChartCornerRadius: number;
-    pieChartColorsScheme: string; // ColorSchemeId
+    pieChartColorsScheme: ColorSchemeId; // ColorSchemeId
     pieChartBorderWidth: number;
     pieChartBorderColor: string;
     pieChartEnableArcLabels: boolean;
     pieChartArcLabel: string;
     pieChartArcLabelSkipAngle: number;
     pieChartArcLabelTextColor: string;
-    pieChartWidth: string;
+    pieChartWidth: number;
     pieChartHeight: number;
 }
 
@@ -98,30 +97,93 @@ interface DashboardWidget extends SavedWidgetConfig {
     tasks?: Task[]; // 이 위젯 인스턴스에 대한 Task 데이터
 }
 
+// --- ContextMenu Component ---
+interface ContextMenuProps {
+    x: number;
+    y: number;
+    onClose: () => void;
+    onDelete: () => void;
+    onModify: () => void;
+}
+
+const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, onClose, onDelete, onModify }) => {
+    const menuRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+                // 오른쪽 클릭(button === 2)에 대해서는 메뉴 닫기 로직을 실행하지 않음
+                if (event.button === 2) {
+                    return;
+                }
+                onClose();
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, [onClose]);
+
+    const menuStyle: React.CSSProperties = {
+        position: 'absolute',
+        top: y,
+        left: x,
+        backgroundColor: 'white',
+        border: '1px solid #ccc',
+        borderRadius: '4px',
+        boxShadow: '2px 2px 5px rgba(0,0,0,0.2)',
+        zIndex: 1000,
+        minWidth: '120px',
+        padding: '5px 0',
+    };
+
+    const menuItemStyle: React.CSSProperties = {
+        padding: '8px 15px',
+        cursor: 'pointer',
+        whiteSpace: 'nowrap',
+    };
+
+    const handleMenuItemClick = (action: () => void) => {
+        action();
+        onClose();
+    };
+
+    return (
+        <div ref={menuRef} style={menuStyle}>
+            <div style={menuItemStyle} onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f0f0f0')} onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'white')} onClick={() => handleMenuItemClick(onModify)}>Modify</div>
+            <div style={menuItemStyle} onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f0f0f0')} onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'white')} onClick={() => handleMenuItemClick(onDelete)}>Delete</div>
+        </div>
+    );
+};
+
 // --- Draggable Widget in the List (dnd-kit 버전) ---
 interface DraggableWidgetProps {
     config: SavedWidgetConfig;
+    onContextMenu: (event: React.MouseEvent, config: SavedWidgetConfig) => void;
 }
 
-const DraggableWidget: React.FC<DraggableWidgetProps> = ({ config }) => {
-    const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
-        id: `list-widget-${config.widgetName}`, // 목록 위젯은 고유 ID를 가집니다.
-        data: { type: 'listWidget', config: config }, // 드래그 시 전달할 데이터 (transform은 DragOverlay에서 처리)
+const DraggableWidget: React.FC<DraggableWidgetProps> = ({ config, onContextMenu }) => {
+    const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+        id: `list-widget-${config.widgetName}`,
+        data: { type: 'listWidget', config: config },
     });
     return (
         <div
-            ref={setNodeRef} // setNodeRef를 DOM 노드에 연결
+            ref={setNodeRef}
             style={{
                 padding: '8px',
                 margin: '0 0 8px 0',
                 backgroundColor: 'white',
                 border: '1px solid #ddd',
-                borderRadius: '4px', // transform: CSS.Transform.toString(transform), // 드래그 오버레이에서 처리하므로 여기서는 적용하지 않습니다.
-                cursor: 'grab', // CSS cursor 속성
-                opacity: isDragging ? 0.4 : 1, // 드래그 중인 요소의 투명도 조절
+                borderRadius: '4px',
+                cursor: 'grab',
+                opacity: isDragging ? 0.4 : 1,
             }}
-            {...listeners} // 드래그 이벤트를 수신하는 리스너
-            {...attributes} // 접근성 속성
+            onContextMenu={(e) => onContextMenu(e, config)} // Add onContextMenu handler
+            {...listeners}
+            {...attributes}
         >
             {config.widgetName}
         </div>
@@ -145,7 +207,7 @@ const CanvasWidget: React.FC<CanvasWidgetProps> = ({ widget, getTaskValue }) => 
         position: 'absolute',
         top: widget.top,
         left: widget.left,
-        width: parseInt(widget.barChartWidth || widget.lineChartWidth || widget.pieChartWidth || '400px'), // 위젯 너비
+        width: widget.barChartWidth || widget.lineChartWidth || widget.pieChartWidth || 400,
         height: widget.barChartHeight || widget.lineChartHeight || widget.pieChartHeight || 300, // 위젯 높이
         border: '1px dashed #3498db',
         backgroundColor: 'rgba(255, 255, 255, 0.9)',
@@ -189,7 +251,7 @@ const CanvasWidget: React.FC<CanvasWidgetProps> = ({ widget, getTaskValue }) => 
                         barChartEnableLabel={widget.barChartEnableLabel} setBarChartEnableLabel={() => {}}
                         barChartLabelSkipWidth={widget.barChartLabelSkipWidth} setBarChartLabelSkipWidth={() => {}}
                         barChartLabelSkipHeight={widget.barChartLabelSkipHeight} setBarChartLabelSkipHeight={() => {}}
-                        barChartWidth="100%" setBarChartWidth={() => {}} // ChartConfigurator 내부에서 100%로 설정
+                        barChartWidth={400} setBarChartWidth={() => {}} // ChartConfigurator 내부에서 100%로 설정
                         barChartHeight={widget.barChartHeight - 25} setBarChartHeight={() => {}} // 위젯 헤더 높이만큼 빼줌
                         // Line Chart Props
                         lineChartEnableGridX={widget.lineChartEnableGridX} setLineChartEnableGridX={()=>{}}
@@ -214,7 +276,7 @@ const CanvasWidget: React.FC<CanvasWidgetProps> = ({ widget, getTaskValue }) => 
                         lineChartMarginBottom={widget.lineChartMarginBottom} setLineChartMarginBottom={()=>{}}
                         lineChartMarginLeft={widget.lineChartMarginLeft} setLineChartMarginLeft={()=>{}}
                         lineChartColorsScheme={widget.lineChartColorsScheme as ColorSchemeId} setLineChartColorsScheme={()=>{}}
-                        lineChartWidth="100%" setLineChartWidth={()=>{}}
+                        lineChartWidth={400} setLineChartWidth={()=>{}}
                         lineChartHeight={widget.lineChartHeight - 25} setLineChartHeight={()=>{}}
                         // Pie Chart Props
                         pieChartStartAngle={widget.pieChartStartAngle} setPieChartStartAngle={()=>{}}
@@ -233,7 +295,6 @@ const CanvasWidget: React.FC<CanvasWidgetProps> = ({ widget, getTaskValue }) => 
                         pieChartIdKey={widget.pieChartIdKey} setPieChartIdKey={()=>{}}
                         pieChartValueKey={widget.pieChartValueKey} setPieChartValueKey={()=>{}}
                         pieChartInnerRadius={widget.pieChartInnerRadius} setPieChartInnerRadius={()=>{}}
-                        pieChartOuterRadius={widget.pieChartOuterRadius} setPieChartOuterRadius={()=>{}}
                         pieChartPadAngle={widget.pieChartPadAngle} setPieChartPadAngle={()=>{}}
                         pieChartCornerRadius={widget.pieChartCornerRadius} setPieChartCornerRadius={()=>{}}
                         pieChartColorsScheme={widget.pieChartColorsScheme as ColorSchemeId} setPieChartColorsScheme={()=>{}}
@@ -243,7 +304,7 @@ const CanvasWidget: React.FC<CanvasWidgetProps> = ({ widget, getTaskValue }) => 
                         pieChartArcLabel={widget.pieChartArcLabel} setPieChartArcLabel={()=>{}}
                         pieChartArcLabelSkipAngle={widget.pieChartArcLabelSkipAngle} setPieChartArcLabelSkipAngle={()=>{}}
                         pieChartArcLabelTextColor={widget.pieChartArcLabelTextColor} setPieChartArcLabelTextColor={()=>{}}
-                        pieChartWidth="100%" setPieChartWidth={()=>{}}
+                        pieChartWidth={400} setPieChartWidth={()=>{}}
                         pieChartHeight={widget.pieChartHeight - 25} setPieChartHeight={()=>{}}
                     />
                 ) : (
@@ -264,6 +325,7 @@ interface MakeDashboardComponentProps {
     activeWidget: SavedWidgetConfig | DashboardWidget | null;
     setDroppableNodeRef: (node: HTMLElement | null) => void; // dnd-kit의 setNodeRef는 null을 받을 수 있습니다.
     getTaskValue: (task: Task, key: string) => any; // Helper function passed down
+    onWidgetContextMenu: (event: React.MouseEvent, config: SavedWidgetConfig) => void; // Add this prop
     canvasRef: React.RefObject<HTMLDivElement | null>; // useRef(null)로 초기화되므로 null을 허용해야 합니다.
 }
 
@@ -274,6 +336,7 @@ const MakeDashboardComponent: React.FC<MakeDashboardComponentProps> = ({
     activeWidget,
     setDroppableNodeRef,
     getTaskValue, // getTaskValue prop 추가
+    onWidgetContextMenu, // Destructure the new prop
     canvasRef,
 }) => {
 
@@ -290,8 +353,8 @@ const MakeDashboardComponent: React.FC<MakeDashboardComponentProps> = ({
                 <h3 style={{ marginTop: 0, borderBottom: '1px solid #eee', paddingBottom: '10px' }}>Saved Widgets</h3>
                 {savedWidgets.length > 0 ? (
                     <div>
-                        {savedWidgets.map((widget, index) => (
-                            <DraggableWidget key={`${widget.widgetName}-${index}`} config={widget} />
+                        {savedWidgets.map((widget, index) => ( // Pass the handler down
+                            <DraggableWidget key={`${widget.widgetName}-${index}`} config={widget} onContextMenu={onWidgetContextMenu} />
                         ))}
                     </div>
                 ) : (
@@ -301,6 +364,7 @@ const MakeDashboardComponent: React.FC<MakeDashboardComponentProps> = ({
 
             {/* 캔버스 패널 */}
             <div
+                id="dashboard-canvas" // 개발자 도구에서 쉽게 찾을 수 있도록 id 속성 추가            
                 ref={node => {
                     setDroppableNodeRef(node); // dnd-kit의 droppable ref 연결
                     (canvasRef as React.MutableRefObject<HTMLDivElement | null>).current = node; // 기존 ref도 유지
@@ -309,7 +373,6 @@ const MakeDashboardComponent: React.FC<MakeDashboardComponentProps> = ({
                     flex: 1,
                     minHeight: '500px',
                     minWidth: '500px',
-
                     position: 'relative',
                     background: '#e9e9e9',
                     backgroundImage: 'radial-gradient(#d7d7d7 1px, transparent 0)',
@@ -325,15 +388,20 @@ const MakeDashboardComponent: React.FC<MakeDashboardComponentProps> = ({
             <DragOverlay>
                 {activeId && activeWidget ? (
                     <div
-                        style={{
-                            padding: '10px',
+                        style={{ // 실제 위젯의 크기를 반영하도록 스타일 수정
+                            width: activeWidget.barChartWidth || activeWidget.lineChartWidth || activeWidget.pieChartWidth || 400,
+                            height: activeWidget.barChartHeight || activeWidget.lineChartHeight || activeWidget.pieChartHeight || 300,
                             border: '1px dashed #3498db',
                             backgroundColor: 'rgba(255, 255, 255, 0.9)',
                             cursor: 'grabbing',
-                            minWidth: '150px',
-                            minHeight: '50px',
                             boxSizing: 'border-box',
-                            opacity: 0.8, // 오버레이는 약간 투명하게
+                            opacity: 0.8,
+                            // 내용물을 간단하게 표시
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontWeight: 'bold',
+                            padding: '10px',
                         }}
                     >
                         {activeWidget.widgetName}
@@ -343,10 +411,35 @@ const MakeDashboardComponent: React.FC<MakeDashboardComponentProps> = ({
         </div>
     );
 };
+
+// --- Custom Collision Detection for Debugging ---
+const customCollisionDetection: CollisionDetection = (args) => {
+    // Log the rectangles that dnd-kit is using internally for its calculations.
+    // This helps diagnose discrepancies between visual position and dnd-kit's understanding.
+    console.log('--- Custom Collision Detection Frame ---');
+    const draggableRect = args.active.rect.current.translated;
+    if (draggableRect) {
+        const { top, left, width, height } = draggableRect;
+        console.log(`Internal Draggable Rect: T=${top.toFixed(2)}, L=${left.toFixed(2)}, R=${(left + width).toFixed(2)}, B=${(top + height).toFixed(2)}`);
+    }
+
+    const canvasContainer = args.droppableContainers.find(c => c.id === 'dashboard-canvas');
+    if (canvasContainer && canvasContainer.rect.current) {
+        const { top, left, width, height } = canvasContainer.rect.current;
+        console.log(`Internal Canvas Rect: T=${top.toFixed(2)}, L=${left.toFixed(2)}, R=${(left + width).toFixed(2)}, B=${(top + height).toFixed(2)}`);
+    }
+
+    // Use the standard rectIntersection algorithm to find collisions
+    // We are just using this custom function to log the internal values.
+    return rectIntersection(args);
+};
+
+
 // --- MakeDashboard (Container) ---
 const MakeDashboard: React.FC = () => {
     const [savedWidgets, setSavedWidgets] = useState<SavedWidgetConfig[]>([]);
     const [activeId, setActiveId] = useState<string | null>(null);
+    const [contextMenu, setContextMenu] = useState<{ x: number; y: number; widgetName: string } | null>(null);
     const [dashboardWidgets, setDashboardWidgets] = useState<DashboardWidget[]>([]);
     const canvasRef = useRef<HTMLDivElement>(null);
 
@@ -383,7 +476,7 @@ const MakeDashboard: React.FC = () => {
     const sensors = useSensors(
         useSensor(PointerSensor, {
             activationConstraint: {
-                distance: 8, // 8px 이동해야 드래그 시작으로 인식
+                distance: 1, // 8px 이동해야 드래그 시작으로 인식
             },
         })
     );
@@ -394,6 +487,30 @@ const MakeDashboard: React.FC = () => {
         id: 'dashboard-canvas', // 드롭 가능한 캔버스의 ID
     });
 
+    const handleWidgetContextMenu = (event: React.MouseEvent, config: SavedWidgetConfig) => {
+        event.preventDefault(); // Prevent default browser context menu
+        setContextMenu({
+            x: event.clientX,
+            y: event.clientY,
+            widgetName: config.widgetName,
+        });
+    };
+
+    const handleCloseContextMenu = () => {
+        setContextMenu(null);
+    };
+
+    const handleDeleteWidget = () => {
+        if (contextMenu) {
+            const widgetNameToDelete = contextMenu.widgetName;
+            const updatedWidgets = savedWidgets.filter(w => w.widgetName !== widgetNameToDelete);
+            localStorage.setItem('savedWidgets', JSON.stringify(updatedWidgets));
+            setSavedWidgets(updatedWidgets); // Update state to re-render
+            setContextMenu(null); // Close context menu
+            console.log(`Widget "${widgetNameToDelete}" deleted from LocalStorage.`);
+        }
+    };
+
     const handleDragStart = (event: any) => {
         console.log("--- Drag Start ---");
         console.log("Active item:", event.active);
@@ -403,7 +520,16 @@ const MakeDashboard: React.FC = () => {
     const handleDragMove = (event: any) => {
         // 이 로그는 매우 자주 발생하지만, 움직임을 디버깅하는 데 유용합니다.
         // 필요 없을 때는 주석 처리할 수 있습니다.
-        console.log(`-- Drag Move -- Delta: { x: ${Math.round(event.delta.x)}, y: ${Math.round(event.delta.y)} }`);
+        const { active } = event;
+        const translatedRect = active.rect.current.translated;
+
+        if (translatedRect) {
+            const { top, left, width, height } = translatedRect;
+            const right = left + width;
+            const bottom = top + height;
+            // DragOverlay의 현재 화면 좌표를 로그로 출력합니다.
+            console.log(`-- Drag Move -- Overlay Coords: T=${top.toFixed(2)}, L=${left.toFixed(2)}, R=${right.toFixed(2)}, B=${bottom.toFixed(2)}`);
+        }
     };
 
     const handleDragOver = (event: any) => {
@@ -419,7 +545,20 @@ const MakeDashboard: React.FC = () => {
 
         // 드롭 영역 밖으로 드롭된 경우 무시
         if (!over) {
-            console.log("Result: Dropped outside of any droppable area. Aborting.");
+            console.log(`Result: Dropped outside of any droppable area. Aborting because 'over' is null.`);
+            const widgetRect = event.active.rect.current.translated;
+            const canvasElement = canvasRef.current;
+            if (widgetRect) {
+                const { top, left, width, height } = widgetRect;
+                const right = left + width;
+                const bottom = top + height;
+                console.log(`Dropped Widget Coords: T=${top.toFixed(2)}, L=${left.toFixed(2)}, R=${right.toFixed(2)}, B=${bottom.toFixed(2)}`);
+            }
+            if (canvasElement) {
+                const canvasRect = canvasElement.getBoundingClientRect();
+                const { top, left, right, bottom } = canvasRect;
+                console.log(`Canvas Coords: T=${top.toFixed(2)}, L=${left.toFixed(2)}, R=${right.toFixed(2)}, B=${bottom.toFixed(2)}`);
+            }
             return;
         }
 
@@ -460,18 +599,33 @@ const MakeDashboard: React.FC = () => {
             }).catch(error => console.error(`Failed to fetch tasks for project ${config.projectId}:`, error));
         } 
         // 캔버스 위의 기존 위젯을 이동하는 경우
-        else if (draggedItemData?.type === 'canvasWidget') {
-            const widget = draggedItemData.widget as DashboardWidget;
-            const newLeft = Math.round(widget.left + delta.x); // 델타값을 기반으로 새 위치 계산
-            const newTop = Math.round(widget.top + delta.y); // 델타값을 기반으로 새 위치 계산
-            console.log(`Action: Moving existing widget '${widget.id}' to new position { left: ${newLeft}, top: ${newTop} }`);
-            setDashboardWidgets(widgets => widgets.map(w => (w.id === widget.id ? { ...w, left: newLeft, top: newTop } : w)));
+        else if (draggedItemData?.type === 'canvasWidget' && over.id === 'dashboard-canvas') {
+            const canvasRect = canvasRef.current?.getBoundingClientRect();
+            if (!canvasRect) return;
+
+            // 드래그 시작 시점의 위젯 위치 (dnd-kit이 측정)
+            const initial = active.rect.current.initial;
+            if (!initial) return;
+
+            // 새 위젯을 추가할 때와 동일한 방식으로 캔버스에 상대적인 새 위치를 계산합니다.
+            // 이 방식이 스크롤이나 캔버스 위치 변경에 더 안정적입니다.
+            const newLeft = Math.round(initial.left + delta.x - canvasRect.left);
+            const newTop = Math.round(initial.top + delta.y - canvasRect.top);
+
+            console.log(`Action: Moving existing widget '${active.id}' to new position { left: ${newLeft}, top: ${newTop} }`);
+            setDashboardWidgets(widgets => widgets.map(w => (w.id === active.id ? { ...w, left: newLeft, top: newTop } : w)));
         }
     };
 
     const handleDragCancel = () => {
         console.log("--- Drag Cancelled ---");
         setActiveId(null);
+    };
+
+    const handleModifyWidget = () => {
+        // For now, do nothing as per requirement
+        console.log(`Modify action for widget "${contextMenu?.widgetName}" (not implemented yet).`);
+        setContextMenu(null); // Close context menu
     };
 
     const activeWidget = activeId
@@ -481,8 +635,14 @@ const MakeDashboard: React.FC = () => {
     return (
         // DndContext는 sensors, collisionDetection, 이벤트 핸들러를 설정합니다.
         <DndContext
-            sensors={sensors} // sensors를 DndContext에 전달
-            collisionDetection={rectIntersection} // 충돌 감지 알고리즘을 rectIntersection으로 변경
+            sensors={sensors}
+            //collisionDetection={rectIntersection} // 충돌 감지 전략을 다시 활성화합니다.
+            collisionDetection={customCollisionDetection} // 디버깅을 위한 커스텀 충돌 감지 로직 사용
+            measuring={{ // 측정 전략을 명시적으로 설정하여 좌표 계산 오류를 방지합니다.
+                droppable: {
+                    strategy: MeasuringStrategy.Always,
+                },
+            }}
             onDragStart={handleDragStart} // 드래그 시작 이벤트 핸들러
             onDragMove={handleDragMove}   // 드래그 이동 이벤트 핸들러
             onDragOver={handleDragOver}     // 드롭 영역 위로 이동 이벤트 핸들러
@@ -496,8 +656,18 @@ const MakeDashboard: React.FC = () => {
                 activeWidget={activeWidget}
                 setDroppableNodeRef={setDroppableNodeRef}
                 getTaskValue={getTaskValue} // getTaskValue prop 전달
+                onWidgetContextMenu={handleWidgetContextMenu} // Pass the handler
                 canvasRef={canvasRef}
             />
+            {contextMenu && (
+                <ContextMenu
+                    x={contextMenu.x}
+                    y={contextMenu.y}
+                    onClose={handleCloseContextMenu}
+                    onDelete={handleDeleteWidget}
+                    onModify={handleModifyWidget}
+                />
+            )}
         </DndContext>
     );
 };
