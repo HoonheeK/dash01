@@ -323,7 +323,6 @@ interface MakeDashboardComponentProps {
     dashboardWidgets: DashboardWidget[];
     activeId: string | null;
     activeWidget: SavedWidgetConfig | DashboardWidget | null;
-    setDroppableNodeRef: (node: HTMLElement | null) => void; // dnd-kit의 setNodeRef는 null을 받을 수 있습니다.
     getTaskValue: (task: Task, key: string) => any; // Helper function passed down
     onWidgetContextMenu: (event: React.MouseEvent, config: SavedWidgetConfig) => void; // Add this prop
     canvasRef: React.RefObject<HTMLDivElement | null>; // useRef(null)로 초기화되므로 null을 허용해야 합니다.
@@ -334,11 +333,15 @@ const MakeDashboardComponent: React.FC<MakeDashboardComponentProps> = ({
     dashboardWidgets,
     activeId,
     activeWidget,
-    setDroppableNodeRef,
     getTaskValue, // getTaskValue prop 추가
     onWidgetContextMenu, // Destructure the new prop
     canvasRef,
 }) => {
+    // dnd-kit의 useDroppable 훅은 DndContext 내에서 호출되어야 합니다.
+    // 이 컴포넌트는 DndContext의 자식이므로 여기에 배치하는 것이 올바릅니다.
+    const { setNodeRef: setDroppableNodeRef } = useDroppable({
+        id: 'dashboard-canvas',
+    });
 
     return (
         <div style={{ display: 'flex', height: 'calc(100vh - 120px)', fontFamily: 'sans-serif' }}>
@@ -417,15 +420,15 @@ const customCollisionDetection: CollisionDetection = (args) => {
     // Log the rectangles that dnd-kit is using internally for its calculations.
     // This helps diagnose discrepancies between visual position and dnd-kit's understanding.
     console.log('--- Custom Collision Detection Frame ---');
-    const draggableRect = args.active.rect.current.translated;
+    const draggableRect = args.collisionRect;
     if (draggableRect) {
         const { top, left, width, height } = draggableRect;
         console.log(`Internal Draggable Rect: T=${top.toFixed(2)}, L=${left.toFixed(2)}, R=${(left + width).toFixed(2)}, B=${(top + height).toFixed(2)}`);
     }
 
-    const canvasContainer = args.droppableContainers.find(c => c.id === 'dashboard-canvas');
-    if (canvasContainer && canvasContainer.rect.current) {
-        const { top, left, width, height } = canvasContainer.rect.current;
+    const canvasRect = args.droppableRects.get('dashboard-canvas');
+    if (canvasRect) {
+        const { top, left, width, height } = canvasRect;
         console.log(`Internal Canvas Rect: T=${top.toFixed(2)}, L=${left.toFixed(2)}, R=${(left + width).toFixed(2)}, B=${(top + height).toFixed(2)}`);
     }
 
@@ -480,12 +483,6 @@ const MakeDashboard: React.FC = () => {
             },
         })
     );
-
-    // 캔버스 드롭 영역 설정
-    // useDroppable 훅은 컴포넌트 내에서 호출되어야 합니다.
-    const { setNodeRef: setDroppableNodeRef } = useDroppable({
-        id: 'dashboard-canvas', // 드롭 가능한 캔버스의 ID
-    });
 
     const handleWidgetContextMenu = (event: React.MouseEvent, config: SavedWidgetConfig) => {
         event.preventDefault(); // Prevent default browser context menu
@@ -654,7 +651,6 @@ const MakeDashboard: React.FC = () => {
                 dashboardWidgets={dashboardWidgets}
                 activeId={activeId}
                 activeWidget={activeWidget}
-                setDroppableNodeRef={setDroppableNodeRef}
                 getTaskValue={getTaskValue} // getTaskValue prop 전달
                 onWidgetContextMenu={handleWidgetContextMenu} // Pass the handler
                 canvasRef={canvasRef}
