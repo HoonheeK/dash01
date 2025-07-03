@@ -4,6 +4,7 @@ import { ResponsiveLine, LineSeries } from '@nivo/line';
 import { ResponsivePie } from '@nivo/pie'; // Import ResponsivePie
 import { ColorSchemeId } from '@nivo/colors';
 import { Task } from '../services/api'; // Assuming Task type is defined here or needs to be passed
+import ChartDisplay from './ChartDisplay';
 
 interface ChartConfiguratorProps {
   tasks: Task[];
@@ -868,6 +869,13 @@ const ChartConfigurator: React.FC<ChartConfiguratorProps> = ({
           )}
         </>
       )}
+      { /* 미리보기 영역 예시 */ }
+      <ChartDisplay
+        chartType={chartType} tasks={[]} getTaskValue={function (task: Task, key: string) {
+          throw new Error('Function not implemented.');
+        } } barChartIndexBy={''} barChartKeys={[]} barChartLayout={'vertical'} barChartGroupMode={'stacked'} barChartReverse={false} barChartPadding={0} barChartShowAxisTop={false} barChartShowAxisRight={false} barChartShowAxisBottom={false} barChartShowAxisLeft={false} barChartEnableGridX={false} barChartEnableGridY={false} barChartEnableLabel={false} barChartLabelSkipWidth={0} barChartLabelSkipHeight={0} barChartWidth={0} barChartHeight={0} lineChartXKey={''} lineChartYKeys={[]} lineChartCurve={'linear'} lineChartEnablePoints={false} lineChartPointSize={0} lineChartEnableArea={false} lineChartLineWidth={0} lineChartPointBorderWidth={0} lineChartPointLabel={''} lineChartPointLabelYOffset={0} lineChartUseThemeBackgroundForPointColor={false} lineChartCustomPointColor={''} lineChartAreaOpacity={0} lineChartUseMesh={false} lineChartXScaleType={'linear'} lineChartMarginTop={0} lineChartMarginRight={0} lineChartMarginBottom={0} lineChartMarginLeft={0} lineChartColorsScheme={'nivo'} lineChartWidth={0} lineChartHeight={0} lineChartEnableGridX={false} lineChartEnableGridY={false} pieChartIdKey={''} pieChartValueKey={''} pieChartInnerRadius={0} pieChartPadAngle={0} pieChartCornerRadius={0} pieChartColorsScheme={'nivo'} pieChartBorderWidth={0} pieChartBorderColor={''} pieChartEnableArcLabels={false} pieChartArcLabel={''} pieChartArcLabelSkipAngle={0} pieChartArcLabelTextColor={''} pieChartEnableArcLinkLabels={false} pieChartArcLinkLabel={''} pieChartArcLinkLabelsSkipAngle={0} pieChartArcLinkLabelsTextColor={''} pieChartStartAngle={0} pieChartEndAngle={0} pieChartSortByValue={false} pieChartIsInteractive={false} pieChartRole={''} pieChartMarginTop={0} pieChartMarginRight={0} pieChartMarginBottom={0} pieChartMarginLeft={0} pieChartWidth={0} pieChartHeight={0}        // ...나머지 차트 관련 props 전달...
+        // ChartConfigurator에서 관리하는 상태를 그대로 넘기면 됩니다.
+      />
     </div>
   );
 };
