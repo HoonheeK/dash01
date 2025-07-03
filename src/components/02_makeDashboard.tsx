@@ -414,6 +414,24 @@ const MakeDashboardComponent: React.FC<MakeDashboardComponentProps> = ({
 
 // --- Custom Collision Detection for Debugging ---
 const customCollisionDetection: CollisionDetection = (args) => {
+<<<<<<< HEAD
+=======
+    // Log the rectangles that dnd-kit is using internally for its calculations.
+    // This helps diagnose discrepancies between visual position and dnd-kit's understanding.
+    console.log('--- Custom Collision Detection Frame ---');
+    const draggableRect = args.collisionRect;
+    if (draggableRect) {
+        const { top, left, width, height } = draggableRect;
+        console.log(`Internal Draggable Rect: T=${top.toFixed(2)}, L=${left.toFixed(2)}, R=${(left + width).toFixed(2)}, B=${(top + height).toFixed(2)}`);
+    }
+
+    const canvasRect = args.droppableRects.get('dashboard-canvas');
+    if (canvasRect) {
+        const { top, left, width, height } = canvasRect;
+        console.log(`Internal Canvas Rect: T=${top.toFixed(2)}, L=${left.toFixed(2)}, R=${(left + width).toFixed(2)}, B=${(top + height).toFixed(2)}`);
+    }
+
+>>>>>>> 1ebbcd464c234783b1522fe4fd46927bef648799
     // Use the standard rectIntersection algorithm to find collisions
     // We are just using this custom function to log the internal values.
     return rectIntersection(args);
